@@ -1,0 +1,46 @@
+<div id="pmpro_billing_address_fields" class="pmpro_checkout">
+    <hr>
+    <h3>
+        <span class="pmpro_checkout-h3-name">Endereço de Faturamento</span>
+    </h3>
+    <div class="pmpro_checkout-fields">
+        <div class="pmpro_checkout-field pmpro_checkout-field-cep">
+            <label for="cep">CEP</label>
+            <input id="cep" name="cep" type="text" class="input pmpro_required" size="30" placeholder="Somente números" value="!!cep!!">
+            <br/>
+            <small id="warning">Verifique se o CEP digitado está correto e tente novamente</small>
+        </div> <!-- end pmpro_checkout-field-cep -->
+        <div class="pmpro_checkout-field pmpro_checkout-showfields">
+            <input id="showfields" name="showfields" type="button" class="input" value="Buscar pelo CEP">
+        </div> <!-- end pmpro_checkout-field-cep -->
+        <div class="pmpro_checkout-field pmpro_checkout-field-endereco">
+            <label for="endreco">Endereço</label>
+            <input require id="endereco" name="endereco" type="text" class="input pmpro_required" size="80" value="!!endereco!!">
+        </div>
+        <div class="pmpro_checkout-field pmpro_checkout-field-numero">
+            <label for="numero">Numero (Endereço)</label>
+            <input id="numero" name="numero" type="text" class="input pmpro_required" size="20" value="!!numero!!">
+        </div>
+        <div class="pmpro_checkout-field pmpro_checkout-field-complemento">
+            <label for="complemento">Complemento (Endereço)</label>
+            <input id="complemento" name="complemento" type="text" class="input pmpro_required" size="40" value="!!complemento!!">
+        </div>
+        <div class="pmpro_checkout-field pmpro_checkout-field-bairro">
+                <label for="bairro">Bairro</label>
+                <input id="bairro" name="bairro" type="text" class="input pmpro_required" size="40" value="!!bairro!!">
+            </div>
+        <div class="pmpro_checkout-field pmpro_checkout-field-cidade">
+            <label for="cidade">Cidade</label>
+            <input id="cidade" name="cidade" type="text" class="input pmpro_required" size="30" value="!!cidade!!">
+        </div> <!-- end pmpro_checkout-field-cidade -->
+        <div class="pmpro_checkout-field pmpro_checkout-field-estado">
+            <label for="estado">Estado</label>
+            <input id="estado" name="estado" type="text" class="input pmpro_required" size="30" value="!!estado!!">
+        </div> <!-- end pmpro_checkout-field-estado -->
+        <div class="pmpro_checkout-field pmpro_checkout-field-telefone">
+            <label for="telefone">Telefone</label>
+            <input id="telefoneddd" name="telefoneddd" type="text" class="input pmpro_required" size="2" placeholder="DDD" value="!!telefoneddd!!">
+            <input id="telefonenumber" name="telefonenumber" type="text" class="input pmpro_required" size="9" placeholder="Numero" value="!!telefonenumber!!">
+        </div> <!-- end pmpro_checkout-field-telefone -->
+    </div> <!-- end pmpro_checkout-fields -->
+</div>
