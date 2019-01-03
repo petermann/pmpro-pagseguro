@@ -111,17 +111,9 @@ class PMProGateway_PagSeguro extends PMProGateway
 
 	public static function plugin_action_links($links, $file)
 	{
-		static $this_plugin;
-
-		if (false === isset($this_plugin) || true === empty($this_plugin)) {
-			$this_plugin = plugin_basename(__FILE__);
-		}
-
-		if ($file == $this_plugin) {
-			$settings_link = '<a href="' . admin_url('admin.php?page=pmpro-paymentsettings') . '>Configurações</a>';
-			array_unshift($links, $settings_link);
-		}
-
+		$links[] = '<a href="' .
+			admin_url('admin.php?page=pmpro-paymentsettings') .
+			'">' . __('Settings') . '</a>';
 		return $links;
 	}
 
@@ -183,7 +175,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 			add_filter('pmpro_pages_shortcode_invoice', array('PMProGateway_PagSeguro', 'pmpro_pages_shortcode_invoice'), 20, 1);
 			add_filter('pmpro_pages_shortcode_confirmation', array('PMProGateway_PagSeguro', 'pmpro_pages_shortcode_confirmation'), 20, 1);
 			add_action('pmpro_after_order_settings', array('PMProGateway_PagSeguro', 'pmpro_after_order_settings'));
-			add_action('pmpro_membership_level_after_other_settings',array('PMProGateway_PagSeguro', 'pmpro_membership_level_after_other_settings'));
+			add_action('pmpro_membership_level_after_other_settings', array('PMProGateway_PagSeguro', 'pmpro_membership_level_after_other_settings'));
 		}
 	}
 
@@ -263,1004 +255,946 @@ class PMProGateway_PagSeguro extends PMProGateway
 	{
 		global $gateway, $pmpro_level;
 		if (pmpro_isLevelRecurring($pmpro_level)) return $show;
-			//show our submit buttons
-		?>
-			<span id="pmpro_pagseguro_checkout" <?php if (($gateway != "pagseguro")) { ?>style="display: none;"<?php 
-																																																																																																				} ?>>
-				<input type="hidden" name="submit-checkout" value="1" />
-				<input type="image" class="pmpro_btn-submit-checkout" alt="<?php _e('Faça o Pagamento com o Pag Seguro', 'paid-memberships-pro'); ?> &raquo;" src="<?php echo apply_filters("pmpro_pagseguro_button_image", "https://stc.pagseguro.uol.com.br/public/img/botoes/pagamentos/209x48-comprar-assina.gif"); ?>" />
-				
-			</span>
-		<?php
 
-		//don't show the default
-	return false;
+		include_once(PLUGIN_DIR . "templates/checkout/button.php");
+		return false;
 	}
-
-	static function pmpro_membership_level_after_other_settings(){
+	static function pmpro_membership_level_after_other_settings()
+	{
 		global $wpdb, $gateway_environment, $gateway;
 		$gateway = pmpro_getGateway();
-		if($gateway != "pagseguro") return;
+		if ($gateway != "pagseguro") return;
 
-		if(isset($_REQUEST['edit'])){
-			$level = $wpdb->get_row( $wpdb->prepare( "
+		if (isset($_REQUEST['edit'])) {
+			$level = $wpdb->get_row(
+				$wpdb->prepare(
+					"
 					SELECT * FROM $wpdb->pmpro_membership_levels
 					WHERE id = %d LIMIT 1",
 					intval($_REQUEST['edit'])
 				),
-					OBJECT
-				);
-			
-			if(intval($level->cycle_number) == 1 && $level->cycle_period == 'Week')
+				OBJECT
+			);
+
+			if (intval($level->cycle_number) == 1 && $level->cycle_period == 'Week')
 				$levelperiod = '1';
-			elseif(intval($level->cycle_number) == 1 && $level->cycle_period == 'Month')
+			elseif (intval($level->cycle_number) == 1 && $level->cycle_period == 'Month')
 				$levelperiod = '2';
-			elseif(intval($level->cycle_number) == 2 && $level->cycle_period == 'Month')
-				$levelperiod = '3';				
-			elseif(intval($level->cycle_number) == 3 && $level->cycle_period == 'Month')
-				$levelperiod = '4';		
-			elseif(intval($level->cycle_number) == 6 && $level->cycle_period == 'Month')
+			elseif (intval($level->cycle_number) == 2 && $level->cycle_period == 'Month')
+				$levelperiod = '3';
+			elseif (intval($level->cycle_number) == 3 && $level->cycle_period == 'Month')
+				$levelperiod = '4';
+			elseif (intval($level->cycle_number) == 6 && $level->cycle_period == 'Month')
 				$levelperiod = '5';
 			else
-				$levelperiod = '6';													
+				$levelperiod = '6';
 		}
-		
-		?>
-			
-		<script>
-		
-			jQuery(document).ready(function() {
-				
-				$("#cycle_number").hide();
-				let trial = $(".trial_info");
-				trial.html('<th scope="row" valign="top"> <label for="trial_amount"> Duração do Período de Degustação: </label> </th> <td> <input name="trial_amount" type="text" size="20" value="" style="display: none;"> <input name="trial_limit" type="number" min="1" max="100" value="<?php echo isset($level) ? $level->trial_limit : '' ?>"> <br><small>Dias de período de teste (sem gerar cobrança). <b>Máximo de 100 dias<b></small> </td>');
-				let cycle = $(".recurring_info")[0]
-				cycle.innerHTML = ' <th scope="row" valign="top"> <label for="billing_amount">Valor da parcela :</label> </th> <td> R$ <input name="billing_amount" type="text" size="20" value="<?php echo isset($level) ? $level->billing_amount : '' ?>"><input id="cycle_number" name="cycle_number" type="text" size="10" value="1" style="display: none;"> <br><small> Quantidade a ser cobrada um ciclo após o primeiro pagamento. </small>  </td>';
-				$('<tr class="recurring_info"> <th scope="row" valign="top"> <label for="billing_amount">Frequência das Cobranças:</label> </th> <td> <select id="cycle_period" name="cycle_period"> <option value="1"<?php echo isset($levelperiod) ? ($levelperiod == '1' ? "selected" : '') : '' ?>>Semanal</option> <option value="2" <?php echo isset($levelperiod) ? ($levelperiod == '2' ? "selected" : '') : '' ?>>Mensal</option> <option value="3" <?php echo isset($levelperiod) ? ($levelperiod == '3' ? "selected" : '') : '' ?>>Bimestral</option> <option value="4" <?php echo isset($levelperiod) ? ($levelperiod == '4' ? "selected" : '') : '' ?>>Trimestral</option> <option value="5" <?php echo isset($levelperiod) ? ($levelperiod == '5' ? "selected" : '') : '' ?>>Semestral</option> <option value="6" <?php echo isset($levelperiod) ? ($levelperiod == '6' ? "selected" : '') : '' ?>>Anual</option> </select></td></tr>').insertAfter(cycle)
-				$( "form" ).submit(function( event ) {
-					event.preventDefault();
-					let val = $( "#cycle_period" ).val();
-  					switch(val) {
-						case '1':
+		include_once(PLUGIN_DIR . "templates/admin/level-fields-js.php");
 
-							$("#cycle_period option").each(function(index) {
-    							$(this).val('Week');
-							});
-							$("#cycle_number").val('1');
-							break;
-						case '2':
-							$("#cycle_period option").each(function(index) {
-    							$(this).val('Month');
-							});
-							
-							$("#cycle_number").val('1');
-							break;
-						case '3':
-							$("#cycle_period option").each(function(index) {
-    							$(this).val('Month');
-							});
-							$("#cycle_number").val('2');
-							break;
-						case '4':
-							$("#cycle_period option").each(function(index) {
-    							$(this).val('Month');
-							});$("#cycle_number").val('3');
-							break;
-						case '5':
-							$("#cycle_period option").each(function(index) {
-    							$(this).val('Month');
-							});
-							$("#cycle_number").val('6');
-							break;
-						case '6':
-							$("#cycle_period option").each(function(index) {
-    							$(this).val('Year');
-							});
-							$("#cycle_number").val('1');
-							break;
-					}	
-					console.log($("#cycle_period").val());
-					var form$ = jQuery("form");
-                    form$.append("<input type='hidden' id='pagseguro_period' value='"+val+"' />");									
-					form$.get(0).submit();
-
-				});
-			});
-
-		</script>
-		<?php
 	}
 
-/**
- * Make sure PagSeguro is in the gateways list
- */
-static function pmpro_gateways($gateways)
-{
-	if (empty($gateways['pagseguro'])) {
-		$gateways = array_slice($gateways, 0, 1) + array("pagseguro" => __('PagSeguro', PMPROPAGSEGURO)) + array_slice($gateways, 1);
-	}
-	return $gateways;
-}
-
-
-function pmpro_pagseguro_wp_ajax()
-{
-	global $wpdb, $gateway_environment, $gateway, $current_user;
-
-
-	$email = pmpro_getOption('pagseguro_email');
-
-	if ($gateway_environment == 'sandbox') {
-		header("access-control-allow-origin: https://sandbox.pagseguro.uol.com.br");
-		$token = pmpro_getOption('pagseguro_sandbox_token');
-		$sandbox = true;
-	} else {
-
-		$token = pmpro_getOption('pagseguro_token');
-		$sandbox = false;
-	}
-	$pagseguro = new PagSeguroCompras($email, $token, $sandbox);
-
-	if (isset($_REQUEST['notificationCode'])) {
-		if ($_REQUEST['notificationType'] == 'transaction') {
-			$codigo = $_REQUEST['notificationCode']; //Recebe o código da notificação e busca as informações de como está a assinatura
-			$response = self::$pagseguroAssinaturas->consultarNotificacao($codigo);
-			$code = $response['code'];
+	/**
+	 * Make sure PagSeguro is in the gateways list
+	 */
+	static function pmpro_gateways($gateways)
+	{
+		if (empty($gateways['pagseguro'])) {
+			$gateways = array_slice($gateways, 0, 1) + array("pagseguro" => __('PagSeguro', PMPROPAGSEGURO)) + array_slice($gateways, 1);
 		}
-	} else {
-		exit;
-
+		return $gateways;
 	}
 
-	$pagseguro = new PagSeguroCompras($email, $token, $sandbox);
 
-	$response = self::$pagseguroAssinaturas->consultarCompra($code);
+	function pmpro_pagseguro_wp_ajax()
+	{
+		global $wpdb, $gateway_environment, $gateway, $current_user;
+
+
+		$email = pmpro_getOption('pagseguro_email');
+
+		if ($gateway_environment == 'sandbox') {
+			header("access-control-allow-origin: https://sandbox.pagseguro.uol.com.br");
+			$token = pmpro_getOption('pagseguro_sandbox_token');
+			$sandbox = true;
+		} else {
+
+			$token = pmpro_getOption('pagseguro_token');
+			$sandbox = false;
+		}
+		$pagseguro = new PagSeguroCompras($email, $token, $sandbox);
+
+		if (isset($_REQUEST['notificationCode'])) {
+			if ($_REQUEST['notificationType'] == 'transaction') {
+				$codigo = $_REQUEST['notificationCode']; //Recebe o código da notificação e busca as informações de como está a assinatura
+				$response = self::$pagseguroAssinaturas->consultarNotificacao($codigo);
+				$code = $response['code'];
+			}
+		} else {
+			exit;
+
+		}
+
+		$pagseguro = new PagSeguroCompras($email, $token, $sandbox);
+
+		$response = self::$pagseguroAssinaturas->consultarCompra($code);
 				
 				//Pelo Código da Referencia
-	$referencia = $response['reference'];
+		$referencia = $response['reference'];
 
-	$order = new MemberOrder($referencia);
-	$order->payment_transaction_id = $response['code'];
+		$order = new MemberOrder($referencia);
+		$order->payment_transaction_id = $response['code'];
 
-	$order->getUser();
-	$level = pmpro_getLevel($order->membership_id);
+		$order->getUser();
+		$level = pmpro_getLevel($order->membership_id);
 
 
 				//$order->getMembership();
 
-	switch (intval($response['paymentMethod']->type)) {
-		case 1: // cartão 
-			break;
-		case 2: //boleto				
-			$order->cardtype = "boleto";
-			$order->notes = $response['paymentLink'];
-			break;
-		case 3: // Debito Online TEF
-			break;
-		case 4: // saldo PagSeguro
-			break;
+		switch (intval($response['paymentMethod']->type)) {
+			case 1: // cartão 
+				break;
+			case 2: //boleto				
+				$order->cardtype = "boleto";
+				$order->notes = $response['paymentLink'];
+				break;
+			case 3: // Debito Online TEF
+				break;
+			case 4: // saldo PagSeguro
+				break;
 
-	}
-	$end_timestamp = strtotime("+" . $level->cycle_number . " " . $level->cycle_period, current_time('timestamp'));
-	switch (intval($response['status'])) {
-		case 1: //pending
-			$order->status = "pending";
+		}
+		$end_timestamp = strtotime("+" . $level->cycle_number . " " . $level->cycle_period, current_time('timestamp'));
+		switch (intval($response['status'])) {
+			case 1: //pending
+				$order->status = "pending";
 
 
-			self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Aguardando Pagamento.", $order->code));
-			break;
-		case 2: //review
-			$order->status = "review";
+				self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Aguardando Pagamento.", $order->code));
+				break;
+			case 2: //review
+				$order->status = "review";
 			
 				//	self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Análize.", PMPROPAGSEGURO), $order->code));
-			break;
-		case 3: //success
+				break;
+			case 3: //success
 
-			$order->status = "success";
+				$order->status = "success";
 
-			$wpdb->query($sqlQuery);
-			self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Realizado.", $order->code));
-			break;
-		case 4: // Disponivel
+				$wpdb->query($sqlQuery);
+				self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Realizado.", $order->code));
+				break;
+			case 4: // Disponivel
 
-			$order->status = "success";
+				$order->status = "success";
 
-			$wpdb->query($sqlQuery);	
+				$wpdb->query($sqlQuery);	
 					//self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Disponivel.", PMPROPAGSEGURO), $order->code));
-			break;
-		case 5: // Em Disputa
-			$order->status = "review";
-			$wpdb->query($sqlQuery);
+				break;
+			case 5: // Em Disputa
+				$order->status = "review";
+				$wpdb->query($sqlQuery);
 					//self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Disputa, consute o site do Pag Seguro.", PMPROPAGSEGURO), $order->code));
-			break;
-		case 6: // refunded
-			$order->status = "refunded";
-			self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Devolvido.", $order->code));
-			break;
-		case 7:
-			$order->status = "error";
-			self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Não Concluido.", $order->code));
-			break;
-		case 8:
-			$order->status = "cancelled";
-			self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Cancelado.", $order->code));
-			break;
-	}
-	if ($order->status == 'success') {
+				break;
+			case 6: // refunded
+				$order->status = "refunded";
+				self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Devolvido.", $order->code));
+				break;
+			case 7:
+				$order->status = "error";
+				self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Não Concluido.", $order->code));
+				break;
+			case 8:
+				$order->status = "cancelled";
+				self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Cancelado.", $order->code));
+				break;
+		}
+		if ($order->status == 'success') {
 
-		$pmpro_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . (int)$order->membership_id . "' LIMIT 1");
+			$pmpro_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . (int)$order->membership_id . "' LIMIT 1");
 				//var_dump($pmpro_level);
-		$startdate = apply_filters("pmpro_checkout_start_date", "'" . current_time("mysql") . "'", $order->user_id, $pmpro_level);
+			$startdate = apply_filters("pmpro_checkout_start_date", "'" . current_time("mysql") . "'", $order->user_id, $pmpro_level);
 
-		if (!empty($pmpro_level->expiration_number)) {
-			$enddate = "'" . date("Y-m-d", strtotime("+ " . $pmpro_level->expiration_number . " " . $pmpro_level->expiration_period, current_time("timestamp"))) . "'";
-		} else {
-			$enddate = "NULL";
-		}
-
-		$custom_level = array(
-			'user_id' => $order->user_id,
-			'membership_id' => $pmpro_level->id,
-			'code_id' => '',
-			'initial_payment' => $pmpro_level->initial_payment,
-			'billing_amount' => $pmpro_level->billing_amount,
-			'cycle_number' => $pmpro_level->cycle_number,
-			'cycle_period' => $pmpro_level->cycle_period,
-			'billing_limit' => $pmpro_level->billing_limit,
-			'trial_amount' => $pmpro_level->trial_amount,
-			'trial_limit' => $pmpro_level->trial_limit,
-			'startdate' => $startdate,
-			'enddate' => $enddate
-		);
-
-
-		if (pmpro_changeMembershipLevel($custom_level, $order->user_id, 'changed')) {
-			$order->status = "success";
-			$order->membership_id = $pmpro_level->id;
-			update_user_meta(
-				$order->user_id,
-				"pmpro_pagseguro_next_update",
-				json_encode(array(
-					'date' => date("Y-m-d", strtotime("+ $pmpro_level->cycle_number $pmpro_level->cycle_period")),
-					'reference' => $order->code
-				))
-			);
-
-		}
-	}
-	$order->saveOrder();
-	http_response_code(200);
-	exit;
-}
-
-
-
-/**
- * Get a list of payment options that the PagSeguro gateway needs/supports.
- */
-static function getGatewayOptions()
-{
-	$options = array(
-		'pagseguro_email',
-		'pagseguro_sandbox_token',
-		'pagseguro_token',
-		'gateway_environment',
-		'currency',
-		'tax_state',
-		'tax_rate',
-	);
-
-	return $options;
-}
-
-/**
- * Set payment options for payment settings page.
- */
-static function pmpro_payment_options($options)
-{
-				//get PagSeguro options
-	$pagseguro_options = self::getGatewayOptions();
-
-				//merge with others.
-	$options = array_merge($pagseguro_options, $options);
-
-	return $options;
-}
-/**
- * Display fields for this gateway's options.
- *
- * @since 1.8
- */
-static function pmpro_payment_option_fields($values, $gateway)
-{
-	include_once(PLUGIN_DIR . "includes/admin-options.php");
-}
-
-/**
- * Remove required billing fields
- */
-static function pmpro_required_billing_fields($fields)
-{
-	unset($fields['bfirstname']);
-	unset($fields['blastname']);
-	unset($fields['baddress1']);
-	unset($fields['bcity']);
-	unset($fields['bstate']);
-	unset($fields['bzipcode']);
-	unset($fields['bphone']);
-	unset($fields['bemail']);
-	unset($fields['bcountry']);
-	unset($fields['CardType']);
-	unset($fields['AccountNumber']);
-	unset($fields['ExpirationMonth']);
-	unset($fields['ExpirationYear']);
-	unset($fields['CVV']);
-
-	return $fields;
-}
-static function pmpro_checkout_order($order)
-{
-	global $wpdb, $current_user;
-
-	$data = $_REQUEST;
-	$order->accountnumber = $data['cardnumber'];
-	$order->expirationmonth = $data['cardexpmonth'];
-	$order->expirationyear = $data['cardexpyear'];
-	$order->FirstName = $current_user->user_firstname;
-	$order->LastName = $current_user->user_lastname;
-	$order->Email = $current_user->user_email;
-	$order->Address1 = $data['endereco'] . " " . $data['numero'];
-	$order->Address2 = $data['complemento'];
-	$order->billing->name = $data['cardholdername'];
-	$order->billing->street = $data['endereco'] . " " . $data['numero'];
-	$order->billing->city = $data['cidade'];
-	$order->billing->state = $data['estado'];
-	$order->billing->country = 'BRA';
-	$order->billing->zip = $data['cep'];
-	$order->billing->phone = $data['telefoneddd'] . " " . $data['telefonenumber'];
-	$order->client_hash = $data['client_hash'];
-	$order->card_token = $data['card_token'];
-	$order->pagseguro_data = $data;
-	if (empty($order->FirstName) && empty($order->LastName)) {
-		if (!empty($current_user->ID)) {
-			$order->FirstName = get_user_meta($current_user->ID, "first_name", true);
-			$order->LastName = get_user_meta($current_user->ID, "last_name", true);
-		} elseif (!empty($_REQUEST['first_name']) && !empty($_REQUEST['last_name'])) {
-			$order->FirstName = sanitize_text_field($_REQUEST['first_name']);
-			$order->LastName = sanitize_text_field($_REQUEST['last_name']);
-		}
-	}
-
-	return $order;
-}
-
-/**
- * Code to run after checkout
- *
- * @since 1.8
- */
-static function pmpro_after_checkout($user_id, $order)
-{
-	global $gateway;
-
-	if ($gateway == "pagseguro") {
-		if (self::$is_loaded && !empty($order) && !empty($order->pagseguro_plancode)) {
-			update_user_meta($user_id, "pmpro_pagseguro_plancode", $order->pagseguro_plancode);
-		}
-	}
-}
-
-/**
- * Process checkout and decide if a charge and or subscribe is needed
- *
- * @since 1.4
- */
-function process(&$order)
-{
-	if (pmpro_isLevelRecurring($order->membership_level)) {
-		if ($this->subscribe($order)) {
-			$order->saveOrder();
-			return true;
-		} else {
-			if (empty($order->error)) {
-				if (!self::$is_loaded) {
-
-					$order->error = __("Payment error: Please contact the webmaster (pagseguro-load-error)", 'paid-memberships-pro');
-
-				} else {
-
-					$order->error = __("Unknown error: payment failed.", 'paid-memberships-pro');
-				}
+			if (!empty($pmpro_level->expiration_number)) {
+				$enddate = "'" . date("Y-m-d", strtotime("+ " . $pmpro_level->expiration_number . " " . $pmpro_level->expiration_period, current_time("timestamp"))) . "'";
+			} else {
+				$enddate = "NULL";
 			}
 
-			return false;
+			$custom_level = array(
+				'user_id' => $order->user_id,
+				'membership_id' => $pmpro_level->id,
+				'code_id' => '',
+				'initial_payment' => $pmpro_level->initial_payment,
+				'billing_amount' => $pmpro_level->billing_amount,
+				'cycle_number' => $pmpro_level->cycle_number,
+				'cycle_period' => $pmpro_level->cycle_period,
+				'billing_limit' => $pmpro_level->billing_limit,
+				'trial_amount' => $pmpro_level->trial_amount,
+				'trial_limit' => $pmpro_level->trial_limit,
+				'startdate' => $startdate,
+				'enddate' => $enddate
+			);
+
+
+			if (pmpro_changeMembershipLevel($custom_level, $order->user_id, 'changed')) {
+				$order->status = "success";
+				$order->membership_id = $pmpro_level->id;
+				update_user_meta(
+					$order->user_id,
+					"pmpro_pagseguro_next_update",
+					json_encode(array(
+						'date' => date("Y-m-d", strtotime("+ $pmpro_level->cycle_number $pmpro_level->cycle_period")),
+						'reference' => $order->code
+					))
+				);
+
+			}
 		}
-	} else {
-		return $this->sendToPagSeguro($order);
+		$order->saveOrder();
+		http_response_code(200);
+		exit;
 	}
 
 
-}
+
+	/**
+	 * Get a list of payment options that the PagSeguro gateway needs/supports.
+	 */
+	static function getGatewayOptions()
+	{
+		$options = array(
+			'pagseguro_email',
+			'pagseguro_sandbox_token',
+			'pagseguro_token',
+			'gateway_environment',
+			'currency',
+			'tax_state',
+			'tax_rate',
+		);
+
+		return $options;
+	}
+
+	/**
+	 * Set payment options for payment settings page.
+	 */
+	static function pmpro_payment_options($options)
+	{
+				//get PagSeguro options
+		$pagseguro_options = self::getGatewayOptions();
+
+				//merge with others.
+		$options = array_merge($pagseguro_options, $options);
+
+		return $options;
+	}
+	/**
+	 * Display fields for this gateway's options.
+	 *
+	 * @since 1.8
+	 */
+	static function pmpro_payment_option_fields($values, $gateway)
+	{
+		include_once(PLUGIN_DIR . "includes/admin-options.php");
+	}
+
+	/**
+	 * Remove required billing fields
+	 */
+	static function pmpro_required_billing_fields($fields)
+	{
+		unset($fields['bfirstname']);
+		unset($fields['blastname']);
+		unset($fields['baddress1']);
+		unset($fields['bcity']);
+		unset($fields['bstate']);
+		unset($fields['bzipcode']);
+		unset($fields['bphone']);
+		unset($fields['bemail']);
+		unset($fields['bcountry']);
+		unset($fields['CardType']);
+		unset($fields['AccountNumber']);
+		unset($fields['ExpirationMonth']);
+		unset($fields['ExpirationYear']);
+		unset($fields['CVV']);
+
+		return $fields;
+	}
+	static function pmpro_checkout_order($order)
+	{
+		global $wpdb, $current_user;
+
+		$data = $_REQUEST;
+		$order->accountnumber = $data['cardnumber'];
+		$order->expirationmonth = $data['cardexpmonth'];
+		$order->expirationyear = $data['cardexpyear'];
+		$order->FirstName = $current_user->user_firstname;
+		$order->LastName = $current_user->user_lastname;
+		$order->Email = $current_user->user_email;
+		$order->Address1 = $data['endereco'] . " " . $data['numero'];
+		$order->Address2 = $data['complemento'];
+		$order->billing->name = $data['cardholdername'];
+		$order->billing->street = $data['endereco'] . " " . $data['numero'];
+		$order->billing->city = $data['cidade'];
+		$order->billing->state = $data['estado'];
+		$order->billing->country = 'BRA';
+		$order->billing->zip = $data['cep'];
+		$order->billing->phone = $data['telefoneddd'] . " " . $data['telefonenumber'];
+		$order->client_hash = $data['client_hash'];
+		$order->card_token = $data['card_token'];
+		$order->pagseguro_data = $data;
+		if (empty($order->FirstName) && empty($order->LastName)) {
+			if (!empty($current_user->ID)) {
+				$order->FirstName = get_user_meta($current_user->ID, "first_name", true);
+				$order->LastName = get_user_meta($current_user->ID, "last_name", true);
+			} elseif (!empty($_REQUEST['first_name']) && !empty($_REQUEST['last_name'])) {
+				$order->FirstName = sanitize_text_field($_REQUEST['first_name']);
+				$order->LastName = sanitize_text_field($_REQUEST['last_name']);
+			}
+		}
+
+		return $order;
+	}
+
+	/**
+	 * Code to run after checkout
+	 *
+	 * @since 1.8
+	 */
+	static function pmpro_after_checkout($user_id, $order)
+	{
+		global $gateway;
+
+		if ($gateway == "pagseguro") {
+			if (self::$is_loaded && !empty($order) && !empty($order->pagseguro_plancode)) {
+				update_user_meta($user_id, "pmpro_pagseguro_plancode", $order->pagseguro_plancode);
+			}
+		}
+	}
+
+	/**
+	 * Process checkout and decide if a charge and or subscribe is needed
+	 *
+	 * @since 1.4
+	 */
+	function process(&$order)
+	{
+		if (pmpro_isLevelRecurring($order->membership_level)) {
+			if ($this->subscribe($order)) {
+				$order->saveOrder();
+				return true;
+			} else {
+				if (empty($order->error)) {
+					if (!self::$is_loaded) {
+
+						$order->error = __("Payment error: Please contact the webmaster (pagseguro-load-error)", 'paid-memberships-pro');
+
+					} else {
+
+						$order->error = __("Unknown error: payment failed.", 'paid-memberships-pro');
+					}
+				}
+
+				return false;
+			}
+		} else {
+			return $this->sendToPagSeguro($order);
+		}
+
+
+	}
 
 
 
-function subscribe(&$order)
-{
-	global $wpdb, $gateway, $gateway_environment;
+	function subscribe(&$order)
+	{
+		global $wpdb, $gateway, $gateway_environment;
 		//create a code for the order
-	if (empty($order->code))
-		$order->code = $order->getRandomCode();
+		if (empty($order->code))
+			$order->code = $order->getRandomCode();
 
 				//filter order before subscription. use with care.
-	$order = apply_filters("pmpro_subscribe_order", $order, $this);
-	if (!empty($order->user_id))
-		$user_id = $order->user_id;
-	else {
-		global $current_user;
-		$user_id = $current_user->ID;
-	}
+		$order = apply_filters("pmpro_subscribe_order", $order, $this);
+		if (!empty($order->user_id))
+			$user_id = $order->user_id;
+		else {
+			global $current_user;
+			$user_id = $current_user->ID;
+		}
 
-	$level_id = $order->membership_id;
-	if ($gateway_environment == "sandbox") {
-		$levelmeta = $wpdb->get_row($wpdb->prepare("
+		$level_id = $order->membership_id;
+		$level = $wpdb->get_row(
+			$wpdb->prepare(
+				"
+				SELECT * FROM $wpdb->pmpro_membership_levels
+				WHERE id = %d LIMIT 1",
+				intval($level_id)
+			),
+			OBJECT
+		);
+
+		if (intval($level->cycle_number) == 1 && $level->cycle_period == 'Week')
+			$levelperiod = self::$pagseguroAssinaturas::SEMANAL;
+		elseif (intval($level->cycle_number) == 1 && $level->cycle_period == 'Month')
+			$levelperiod = self::$pagseguroAssinaturas::MENSAL;
+		elseif (intval($level->cycle_number) == 2 && $level->cycle_period == 'Month')
+			$levelperiod = self::$pagseguroAssinaturas::BIMESTRAL;
+		elseif (intval($level->cycle_number) == 3 && $level->cycle_period == 'Month')
+			$levelperiod = self::$pagseguroAssinaturas::TRIMESTRAL;
+		elseif (intval($level->cycle_number) == 6 && $level->cycle_period == 'Month')
+			$levelperiod = self::$pagseguroAssinaturas::SEMESTRAL;
+		else
+			$levelperiod = self::$pagseguroAssinaturas::ANUAL;
+		if ($gateway_environment == "sandbox") {
+			$levelmeta = $wpdb->get_row($wpdb->prepare("
 			SELECT * FROM $wpdb->pmpro_membership_levelmeta WHERE pmpro_membership_level_id	= %d and meta_key = 'pmpro_pagseguro_sandbox_code' LIMIT 1", $level_id), OBJECT);
-	} else {
-		$levelmeta = $wpdb->get_row($wpdb->prepare("
+		} else {
+			$levelmeta = $wpdb->get_row($wpdb->prepare("
 			SELECT * FROM $wpdb->pmpro_membership_levelmeta WHERE pmpro_membership_level_id	= %d and meta_key = 'pmpro_pagseguro_code' LIMIT 1", $level_id), OBJECT);
-	}
-	$order->user_id = $user_id;
-	$order->subtotal = floatval($order->PaymentAmount) + floatval($order->InitialPayment);
-	$order->total = $order->subtotal;
-	$order->payment_type = "Pag Seguro";
-	$morder->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
-	$order->saveOrder();
+		}
+		$order->user_id = $user_id;
+		$order->subtotal = floatval($order->PaymentAmount) + floatval($order->InitialPayment);
+		$order->total = $order->subtotal;
+		$order->payment_type = "Pag Seguro";
+		$morder->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
+		$order->saveOrder();
 
 		//print_r($order);
 		// die;
 
 
 
-	$codigoPlano = '';
-	try {
-		if (!isset($levelmeta)) {
+		$codigoPlano = '';
+		try {
+			if (!isset($levelmeta)) {
 
-			self::$pagseguroAssinaturas->setReferencia("PAGSEGURO-PMPRO: " . $order->membership_name);
-			self::$pagseguroAssinaturas->setNomeAssinatura($order->membership_name);
-			self::$pagseguroAssinaturas->setDescricao("Plano: " . $order->membership_name);
-			self::$pagseguroAssinaturas->setPeriodicidade(($order->BillingPeriod == "Month" ? PagSeguroAssinaturas::MENSAL : PagSeguroAssinaturas::ANUAL));
-			self::$pagseguroAssinaturas->setValor(floatval($order->PaymentAmount));
+				self::$pagseguroAssinaturas->setReferencia("PAGSEGURO-PMPRO: " . $order->membership_name);
+				self::$pagseguroAssinaturas->setNomeAssinatura($order->membership_name);
+				self::$pagseguroAssinaturas->setDescricao("Plano: " . $order->membership_name);
 
-			if (!empty($order->BillingFrequency))
-				self::$pagseguroAssinaturas->setExpiracao(intval($order->BillingFrequency), ($order->BillingPeriod == "Month" ? 'MONTHS' : 'YEARS'));
-			if (!empty($order->TrialBillingCycles) && $order->TrialAmount == 0)
-				self::$pagseguroAssinaturas->setPeriodoTeste(intval($order->TrialBillingCycles));
-			if (!empty($order->InitialPayment))
-				self::$pagseguroAssinaturas->setTaxaAdesao(floatval($order->InitialPayment));
+				self::$pagseguroAssinaturas->setPeriodicidade($levelperiod);
+				self::$pagseguroAssinaturas->setValor(floatval($order->PaymentAmount));
+
+				if (intval($level->expiration_number) > 0)
+					self::$pagseguroAssinaturas->setExpiracao(intval($level->expiration_number), ($level->expiration_period == "Month" ? 'MONTHS' : 'YEARS'));
+				if (!empty($order->TrialBillingCycles) && $order->TrialAmount == 0)
+					self::$pagseguroAssinaturas->setPeriodoTeste(intval($order->TrialBillingCycles));
+				if (!empty($order->InitialPayment))
+					self::$pagseguroAssinaturas->setTaxaAdesao(floatval($order->InitialPayment));
 
 
 				// self::$pagseguroAssinaturas->setRedirectURL(pmpro_url("checkout", "?level=" . $order->membership_id . "&order_ref=" . $order->code));
 
 
-			$codigoPlano = self::$pagseguroAssinaturas->criarPlano();
-			if ($gateway_environment == "sandbox")
-				$data = array('meta_key' => 'pmpro_pagseguro_sandbox_code', 'meta_value' => $codigoPlano, 'pmpro_membership_level_id' => $order->membership_id);
-			else
-				$data = array('meta_key' => 'pmpro_pagseguro_code', 'meta_value' => $codigoPlano, 'pmpro_membership_level_id' => $order->membership_id);
-			$format = array('%s', '%s');
+				$codigoPlano = self::$pagseguroAssinaturas->criarPlano();
+				if ($gateway_environment == "sandbox")
+					$data = array('meta_key' => 'pmpro_pagseguro_sandbox_code', 'meta_value' => $codigoPlano, 'pmpro_membership_level_id' => $order->membership_id);
+				else
+					$data = array('meta_key' => 'pmpro_pagseguro_code', 'meta_value' => $codigoPlano, 'pmpro_membership_level_id' => $order->membership_id);
+				$format = array('%s', '%s');
 
-			$wpdb->insert($wpdb->pmpro_membership_levelmeta, $data, $format);
+				$wpdb->insert($wpdb->pmpro_membership_levelmeta, $data, $format);
 
 
-			if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-				$ip = $_SERVER['HTTP_CLIENT_IP'];
-			} elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-				$ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+				if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+					$ip = $_SERVER['HTTP_CLIENT_IP'];
+				} elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+					$ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+				} else {
+					$ip = $_SERVER['REMOTE_ADDR'];
+				}
+				if ($gateway_environment == 'sandbox') {
+					$ip = '192.168.0.1';
+				}
+				self::$pagseguroAssinaturas->setIp($ip);
+				self::$pagseguroAssinaturas->setNomeCliente($order->FirstName . " " . $order->LastName);
+				self::$pagseguroAssinaturas->setNomeCliente($order->pagseguro_data['cardholdername'], true);
+				if ($gateway_environment == 'sandbox')
+					self::$pagseguroAssinaturas->setEmailCliente('email@sandbox.pagseguro.com.br');
+				else
+					self::$pagseguroAssinaturas->setEmailCliente(get_user_meta($user_id, "user_email", true));
+
+				self::$pagseguroAssinaturas->setTelefone($order->pagseguro_data['telefoneddd'], $order->pagseguro_data['telefonenumber']);
+
+				self::$pagseguroAssinaturas->setCPF($order->pagseguro_data['cpfholder'], true);
+				self::$pagseguroAssinaturas->setCPF($order->pagseguro_data['cpfsender']);
+
+				self::$pagseguroAssinaturas->setEnderecoCliente($order->pagseguro_data['endereco'], $order->pagseguro_data['numero'], $order->pagseguro_data['complemento'], $order->pagseguro_data['bairro'], $order->pagseguro_data['cidade'], $order->pagseguro_data['estado'], $order->pagseguro_data['cep']);
+
+				self::$pagseguroAssinaturas->setNascimentoCliente($order->pagseguro_data['birthday'] . "/" . $order->pagseguro_data['birthmonth'] . "/" . $order->pagseguro_data['birthyear']);
+
+				self::$pagseguroAssinaturas->setHashCliente($order->pagseguro_data['client_hash']);
+
+				self::$pagseguroAssinaturas->setTokenCartao($order->pagseguro_data['card_token']);
+
+				self::$pagseguroAssinaturas->setReferencia($order->code);
+
+
+				self::$pagseguroAssinaturas->setPlanoCode($codigoPlano);
+				$codigoAssinatura = self::$pagseguroAssinaturas->assinaPlano();
+				$order->payment_transaction_id = $codigoAssinatura;
+				$order->subscription_transaction_id = $codigoAssinatura;
+				$order->status = "success";
+				$order->saveOrder();
 			} else {
-				$ip = $_SERVER['REMOTE_ADDR'];
-			}
-			if ($gateway_environment == 'sandbox') {
-				$ip = '192.168.0.1';
-			}
-			self::$pagseguroAssinaturas->setIp($ip);
-			self::$pagseguroAssinaturas->setNomeCliente($order->FirstName . " " . $order->LastName);
-			self::$pagseguroAssinaturas->setNomeCliente($order->pagseguro_data['cardholdername'], true);
-			if ($gateway_environment == 'sandbox')
-				self::$pagseguroAssinaturas->setEmailCliente('email@sandbox.pagseguro.com.br');
-			else
-				self::$pagseguroAssinaturas->setEmailCliente(get_user_meta($user_id, "user_email", true));
-
-			self::$pagseguroAssinaturas->setTelefone($order->pagseguro_data['telefoneddd'], $order->pagseguro_data['telefonenumber']);
-
-			self::$pagseguroAssinaturas->setCPF($order->pagseguro_data['cpfholder'], true);
-			self::$pagseguroAssinaturas->setCPF($order->pagseguro_data['cpfsender']);
-
-			self::$pagseguroAssinaturas->setEnderecoCliente($order->pagseguro_data['endereco'], $order->pagseguro_data['numero'], $order->pagseguro_data['complemento'], $order->pagseguro_data['bairro'], $order->pagseguro_data['cidade'], $order->pagseguro_data['estado'], $order->pagseguro_data['cep']);
-
-			self::$pagseguroAssinaturas->setNascimentoCliente($order->pagseguro_data['birthday'] . "/" . $order->pagseguro_data['birthmonth'] . "/" . $order->pagseguro_data['birthyear']);
-
-			self::$pagseguroAssinaturas->setHashCliente($order->pagseguro_data['client_hash']);
-
-			self::$pagseguroAssinaturas->setTokenCartao($order->pagseguro_data['card_token']);
-
-			self::$pagseguroAssinaturas->setReferencia($order->code);
-
-
-			self::$pagseguroAssinaturas->setPlanoCode($codigoPlano);
-			$codigoAssinatura = self::$pagseguroAssinaturas->assinaPlano();
-			$order->payment_transaction_id = $codigoAssinatura;
-			$order->subscription_transaction_id = $codigoAssinatura;
-			$order->status = "success";
-			$order->saveOrder();
-		} else {
 				// $codigoPlano = $levelmeta->meta_value;
 				// $url = self::$pagseguroAssinaturas->assinarPlanoCheckout($codigoPlano);
 				// wp_redirect($url);
 				// die;
 
 
-			if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-				$ip = $_SERVER['HTTP_CLIENT_IP'];
-			} elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-				$ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-			} else {
-				$ip = $_SERVER['REMOTE_ADDR'];
+				if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+					$ip = $_SERVER['HTTP_CLIENT_IP'];
+				} elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+					$ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+				} else {
+					$ip = $_SERVER['REMOTE_ADDR'];
+				}
+				if ($gateway_environment == 'sandbox') {
+					$ip = '192.168.0.1';
+				}
+				self::$pagseguroAssinaturas->setIp($ip);
+				self::$pagseguroAssinaturas->setNomeCliente($order->FirstName . " " . $order->LastName);
+				self::$pagseguroAssinaturas->setNomeCliente($order->pagseguro_data['cardholdername'], true);
+				if ($gateway_environment == 'sandbox')
+					self::$pagseguroAssinaturas->setEmailCliente('email@sandbox.pagseguro.com.br');
+				else
+					self::$pagseguroAssinaturas->setEmailCliente(get_user_meta($user_id, "user_email", true));
+
+				self::$pagseguroAssinaturas->setTelefone($order->pagseguro_data['telefoneddd'], $order->pagseguro_data['telefonenumber']);
+
+				self::$pagseguroAssinaturas->setCPF($order->pagseguro_data['cpfholder'], true);
+				self::$pagseguroAssinaturas->setCPF($order->pagseguro_data['cpfsender']);
+
+				self::$pagseguroAssinaturas->setEnderecoCliente($order->pagseguro_data['endereco'], $order->pagseguro_data['numero'], $order->pagseguro_data['complemento'], $order->pagseguro_data['bairro'], $order->pagseguro_data['cidade'], $order->pagseguro_data['estado'], $order->pagseguro_data['cep']);
+
+				self::$pagseguroAssinaturas->setNascimentoCliente($order->pagseguro_data['birthday'] . "/" . $order->pagseguro_data['birthmonth'] . "/" . $order->pagseguro_data['birthyear']);
+
+				self::$pagseguroAssinaturas->setHashCliente($order->pagseguro_data['client_hash']);
+
+				self::$pagseguroAssinaturas->setTokenCartao($order->pagseguro_data['card_token']);
+
+				self::$pagseguroAssinaturas->setReferencia($order->code);
+
+
+				self::$pagseguroAssinaturas->setPlanoCode($codigoPlano);
+				$codigoAssinatura = self::$pagseguroAssinaturas->assinaPlano();
+				$order->payment_transaction_id = $codigoAssinatura;
+				$order->subscription_transaction_id = $codigoAssinatura;
+				$order->status = "success";
+				$order->saveOrder();
+
+
+
 			}
-			if ($gateway_environment == 'sandbox') {
-				$ip = '192.168.0.1';
-			}
-			self::$pagseguroAssinaturas->setIp($ip);
-			self::$pagseguroAssinaturas->setNomeCliente($order->FirstName . " " . $order->LastName);
-			self::$pagseguroAssinaturas->setNomeCliente($order->pagseguro_data['cardholdername'], true);
-			if ($gateway_environment == 'sandbox')
-				self::$pagseguroAssinaturas->setEmailCliente('email@sandbox.pagseguro.com.br');
-			else
-				self::$pagseguroAssinaturas->setEmailCliente(get_user_meta($user_id, "user_email", true));
+			return true;
 
-			self::$pagseguroAssinaturas->setTelefone($order->pagseguro_data['telefoneddd'], $order->pagseguro_data['telefonenumber']);
-
-			self::$pagseguroAssinaturas->setCPF($order->pagseguro_data['cpfholder'], true);
-			self::$pagseguroAssinaturas->setCPF($order->pagseguro_data['cpfsender']);
-
-			self::$pagseguroAssinaturas->setEnderecoCliente($order->pagseguro_data['endereco'], $order->pagseguro_data['numero'], $order->pagseguro_data['complemento'], $order->pagseguro_data['bairro'], $order->pagseguro_data['cidade'], $order->pagseguro_data['estado'], $order->pagseguro_data['cep']);
-
-			self::$pagseguroAssinaturas->setNascimentoCliente($order->pagseguro_data['birthday'] . "/" . $order->pagseguro_data['birthmonth'] . "/" . $order->pagseguro_data['birthyear']);
-
-			self::$pagseguroAssinaturas->setHashCliente($order->pagseguro_data['client_hash']);
-
-			self::$pagseguroAssinaturas->setTokenCartao($order->pagseguro_data['card_token']);
-
-			self::$pagseguroAssinaturas->setReferencia($order->code);
-
-
-			self::$pagseguroAssinaturas->setPlanoCode('F4104D5DCECEC35DD4896FAC750A856F');
-			$codigoAssinatura = self::$pagseguroAssinaturas->assinaPlano();
-			$order->payment_transaction_id = $codigoAssinatura;
-			$order->subscription_transaction_id = $codigoAssinatura;
-			$order->status = "success";
+		} catch (Exception $e) {
+			$order->error = __("Erro ao assinar o plano com o Pag Seguro: ", 'paid-memberships-pro') . $e->getMessage();
+			$order->shorterror = $order->error;
+			$order->status = "error";
 			$order->saveOrder();
-
-
-
+			return false;
 		}
-		return true;
 
-	} catch (Exception $e) {
-		$order->error = __("Erro ao assinar o plano com o Pag Seguro: ", 'paid-memberships-pro') . $e->getMessage();
-		$order->shorterror = $order->error;
-		$order->status = "error";
-		$order->saveOrder();
-		return false;
+
 	}
 
 
-}
 
 
-
-
-function sendToPagSeguro(&$order)
-{
-	global $wpdb, $gateway, $gateway_environment;
+	function sendToPagSeguro(&$order)
+	{
+		global $wpdb, $gateway, $gateway_environment;
 		//create a code for the order
-	if (empty($order->code))
-		$order->code = $order->getRandomCode();
+		if (empty($order->code))
+			$order->code = $order->getRandomCode();
 
-	self::loadPagSeguroLibrary(false);
+		self::loadPagSeguroLibrary(false);
 		
 				//filter order before subscription. use with care.
-	$order = apply_filters("pmpro_subscribe_order", $order, $this);
-	if (!empty($order->user_id))
-		$user_id = $order->user_id;
-	else {
-		global $current_user;
-		$user_id = $current_user->ID;
-	}
+		$order = apply_filters("pmpro_subscribe_order", $order, $this);
+		if (!empty($order->user_id))
+			$user_id = $order->user_id;
+		else {
+			global $current_user;
+			$user_id = $current_user->ID;
+		}
 
-	$order->user_id = $user_id;
-	$order->saveOrder();
+		$order->user_id = $user_id;
+		$order->saveOrder();
 		// print_r($pagseguro);
 		// die;
-	if ($gateway_environment == 'sandbox')
-		self::$pagseguroCompras->setEmailCliente('emails@sandbox.pagseguro.com.br');
-	else
-		self::$pagseguroCompras->setEmailCliente($current_user->user_email);
+		if ($gateway_environment == 'sandbox')
+			self::$pagseguroCompras->setEmailCliente('emails@sandbox.pagseguro.com.br');
+		else
+			self::$pagseguroCompras->setEmailCliente($current_user->user_email);
 			//Nome do comprador (OPCIONAL)
-	self::$pagseguroCompras->setNomeCliente($order->billing->name);	
+		self::$pagseguroCompras->setNomeCliente($order->billing->name);	
 			//Email do comprovador (OPCIONAL)
-	self::$pagseguroCompras->setEmailCliente($current_user->user_email);
+		self::$pagseguroCompras->setEmailCliente($current_user->user_email);
 			//Código usado pelo vendedor para identificar qual é a compra (OPCIONAL)
-	self::$pagseguroCompras->setReferencia($order->code);	
+		self::$pagseguroCompras->setReferencia($order->code);	
 			//print_r(self::$pagseguroAssinaturas->setReferencia($order->code));
 			//Adiciona os itens da compra (ID do ITEM, DESCRICAO, VALOR, QUANTIDADE)
-	self::$pagseguroCompras->adicionarItem(
-		$order->membership_id,
-		$order->membership_name,
-		floatval($order->total),
-		1
-	);
+		self::$pagseguroCompras->adicionarItem(
+			$order->membership_id,
+			$order->membership_name,
+			floatval($order->total),
+			1
+		);
 
 
-	$url = esc_url_raw(admin_url("admin-ajax.php") . "?action=pmpropagseguro");
+		$url = esc_url_raw(admin_url("admin-ajax.php") . "?action=pmpropagseguro");
 		// 	// //URL para onde será enviado as notificações de alteração da compra (OPCIONAL)
-	self::$pagseguroCompras->setNotificationURL($url);		
+		self::$pagseguroCompras->setNotificationURL($url);		
 		// 	// //URL para onde o comprador será redicionado após a compra (OPCIONAL)
-	self::$pagseguroCompras->pagseguroCompras(pmpro_url("checkout", "?level=" . $order->membership_id . "&order_ref=" . $order->code));
+		self::$pagseguroCompras->pagseguroCompras(pmpro_url("checkout", "?level=" . $order->membership_id . "&order_ref=" . $order->code));
 
 
 
 
-	try {
+		try {
 
-		$url = self::$pagseguroCompras->gerarURLCompra();
+			$url = self::$pagseguroCompras->gerarURLCompra();
 			//print_r($order);
-		wp_redirect($url);
-		exit;
-	} catch (Exception $e) {
-		$order->status = "error";
+			wp_redirect($url);
+			exit;
+		} catch (Exception $e) {
+			$order->status = "error";
 			//print_r($order);
-		die;
-		return false;
+			die;
+			return false;
+		}
+			//print_r($order);
+
+
 	}
-			//print_r($order);
 
 
-}
+	function getPagSeguroCheckoutDetails($ref)
+	{
+		global $gateway_environment;
+		$email = pmpro_getOption('pagseguro_email');
 
-
-function getPagSeguroCheckoutDetails($ref)
-{
-	global $gateway_environment;
-	$email = pmpro_getOption('pagseguro_email');
-
-	if ($gateway_environment == 'sandbox') {
-		$token = pmpro_getOption('pagseguro_sandbox_token');
-		$sandbox = true;
-	} else {
-		$token = pmpro_getOption('pagseguro_token');
-		$sandbox = false;
-	}
+		if ($gateway_environment == 'sandbox') {
+			$token = pmpro_getOption('pagseguro_sandbox_token');
+			$sandbox = true;
+		} else {
+			$token = pmpro_getOption('pagseguro_token');
+			$sandbox = false;
+		}
 		//self::$pagseguroAssinaturas = new PagSeguroCompras($email, $token, $sandbox);
-	try {
-		$response = self::$pagseguroCompras->consultarCompraByReferencia($ref);
-		return $response;
-	} catch (Exception $e) {
-		return null;
+		try {
+			$response = self::$pagseguroCompras->consultarCompraByReferencia($ref);
+			return $response;
+		} catch (Exception $e) {
+			return null;
+		}
+
 	}
 
-}
 
-
-function cancel(&$order)
-{
-	$order->updateStatus("cancelled");
-	global $wpdb;
-	try{
+	function cancel(&$order)
+	{
+		$order->updateStatus("cancelled");
+		global $wpdb;
+		try {
 		//self::$pagseguroAssinaturas->cancelarAssinatura($order->subscription_transaction_id);
-		$order->saveOrder();
-	}catch(Exception $e){
-		$order->saveOrder();
-	}
+			$order->saveOrder();
+		} catch (Exception $e) {
+			$order->saveOrder();
+		}
 		//$wpdb->query("DELETE FROM $wpdb->pmpro_membership_orders WHERE id = '" . $order->id . "'");
-	return true;
+		return true;
 
-}
-function delete(&$order)
-{
+	}
+	function delete(&$order)
+	{
 		//no matter what happens below, we're going to cancel the order in our system
-	$order->updateStatus("cancelled");
-	global $wpdb;
-	$wpdb->query("DELETE FROM $wpdb->pmpro_membership_orders WHERE id = '" . $order->id . "'");
-}
-
-
-
-
-/**
- * 1.12 Custom confirmation page
- *
- */
-
-static function pmpro_checkout_confirmed($pmpro_confirmed)
-{
-	global $pmpro_msg, $pmpro_msgt, $pmpro_level, $current_user, $pmpro_review, $pmpro_pagseguro_ref, $discount_code, $bemail;
-	if (!pmpro_isLevelRecurring($pmpro_level)) return $pmpro_confirmed;
-	if (isset($_REQUEST['order_ref'])) {
-		$order_ref = $_REQUEST['order_ref'];
-		$order = new MemberOrder($order_ref);
-		$response = $order->Gateway->getPagSeguroCheckoutDetails($order_ref);
-		$pmpro_confirmed = true;
-
-
+		$order->updateStatus("cancelled");
+		global $wpdb;
+		$wpdb->query("DELETE FROM $wpdb->pmpro_membership_orders WHERE id = '" . $order->id . "'");
 	}
 
 
-	if (!empty($order)) {
-		$pmpro_pagseguro_ref = $order->code;
-		return array("pmpro_confirmed" => $pmpro_confirmed, "order" => $order);
-	} else
-		return $pmpro_confirmed;
-}
 
-public static function pmpro_pages_shortcode_confirmation($content)
-{
-	global $wpdb, $current_user, $pmpro_invoice, $pmpro_msg, $pmpro_msgt;
-	$gateway = pmpro_getGateway();
 
-	if ($gateway != "pagseguro") return $content;
+	/**
+	 * 1.12 Custom confirmation page
+	 *
+	 */
 
-	if ($pmpro_msg) {
-		?>
-		<div class="pmpro_message <?php echo $pmpro_msgt ?>"><?php echo $pmpro_msg ?></div>
-		<?php
+	static function pmpro_checkout_confirmed($pmpro_confirmed)
+	{
+		global $pmpro_msg, $pmpro_msgt, $pmpro_level, $current_user, $pmpro_review, $pmpro_pagseguro_ref, $discount_code, $bemail;
+		if (!pmpro_isLevelRecurring($pmpro_level)) return $pmpro_confirmed;
+		if (isset($_REQUEST['order_ref'])) {
+			$order_ref = $_REQUEST['order_ref'];
+			$order = new MemberOrder($order_ref);
+			$response = $order->Gateway->getPagSeguroCheckoutDetails($order_ref);
+			$pmpro_confirmed = true;
 
-}
 
-if (empty($current_user->membership_level))
-	$confirmation_message = "<p>" . __('Your payment has been submitted. Your membership will be activated shortly.', 'paid-memberships-pro') . "</p>";
-else
-	$confirmation_message = "<p>" . sprintf(__('Thank you for your membership to %s. Your %s membership is now active.', 'paid-memberships-pro'), get_bloginfo("name"), $current_user->membership_level->name) . "</p>";		
+		}
+
+
+		if (!empty($order)) {
+			$pmpro_pagseguro_ref = $order->code;
+			return array("pmpro_confirmed" => $pmpro_confirmed, "order" => $order);
+		} else
+			return $pmpro_confirmed;
+	}
+
+	public static function pmpro_pages_shortcode_confirmation($content)
+	{
+		global $wpdb, $current_user, $pmpro_invoice, $pmpro_msg, $pmpro_msgt;
+		$gateway = pmpro_getGateway();
+
+		if ($gateway != "pagseguro") return $content;
+
+		if ($pmpro_msg) {
+			sprintf('<div class="pmpro_message <?php echo $pmpro_msgt ?>"><?php echo $pmpro_msg ?></div>');
+		}
+
+		if (empty($current_user->membership_level))
+			$confirmation_message = "<p>" . __('Your payment has been submitted. Your membership will be activated shortly.', 'paid-memberships-pro') . "</p>";
+		else
+			$confirmation_message = "<p>" . sprintf(__('Thank you for your membership to %s. Your %s membership is now active.', 'paid-memberships-pro'), get_bloginfo("name"), $current_user->membership_level->name) . "</p>";		
 	
 	//confirmation message for this level
-$level_message = $wpdb->get_var("SELECT l.confirmation FROM $wpdb->pmpro_membership_levels l LEFT JOIN $wpdb->pmpro_memberships_users mu ON l.id = mu.membership_id WHERE mu.status = 'active' AND mu.user_id = '" . $current_user->ID . "' LIMIT 1");
-if (!empty($level_message))
-	$confirmation_message .= "\n" . stripslashes($level_message) . "\n";
-?>	
+		$level_message = $wpdb->get_var("SELECT l.confirmation FROM $wpdb->pmpro_membership_levels l LEFT JOIN $wpdb->pmpro_memberships_users mu ON l.id = mu.membership_id WHERE mu.status = 'active' AND mu.user_id = '" . $current_user->ID . "' LIMIT 1");
+		if (!empty($level_message))
+			$confirmation_message .= "\n" . stripslashes($level_message) . "\n";
+		if (!empty($pmpro_invoice) && !empty($pmpro_invoice->id)) {
+			$pmpro_invoice->getUser();
+			$pmpro_invoice->getMembershipLevel();
 
-	<?php 
-if (!empty($pmpro_invoice) && !empty($pmpro_invoice->id)) {
-	$pmpro_invoice->getUser();
-	$pmpro_invoice->getMembershipLevel();
+			$confirmation_message .= "<p>" . sprintf(__('Below are details about your membership account and a receipt for your initial membership invoice. A welcome email with a copy of your initial membership invoice has been sent to %s.', 'paid-memberships-pro'), $pmpro_invoice->user->user_email) . "</p>";
+			$confirmation_message = apply_filters("pmpro_confirmation_message", $confirmation_message, $pmpro_invoice);
 
-	$confirmation_message .= "<p>" . sprintf(__('Below are details about your membership account and a receipt for your initial membership invoice. A welcome email with a copy of your initial membership invoice has been sent to %s.', 'paid-memberships-pro'), $pmpro_invoice->user->user_email) . "</p>";
-	$confirmation_message = apply_filters("pmpro_confirmation_message", $confirmation_message, $pmpro_invoice);
-
-	echo $confirmation_message;
+			echo $confirmation_message;
 
 
-	if (!empty($pmpro_invoice) && $pmpro_invoice->gateway == "pagseguro") {
+			if (!empty($pmpro_invoice) && $pmpro_invoice->gateway == "pagseguro") {
 
-		$content = file_get_contents(PLUGIN_DIR . "templates/invoice.html");
+				$content = file_get_contents(PLUGIN_DIR . "templates/invoice.html");
 
-		$button = array('src' => pmpro_url('account'), 'text' => 'Continuar');
-		$data = self::getInvoiceTemplateKeys($pmpro_invoice, $button);
+				$button = array('src' => pmpro_url('account'), 'text' => 'Continuar');
+				$data = self::getInvoiceTemplateKeys($pmpro_invoice, $button);
 
-		foreach ($data as $key => $value) {
-			$content = str_replace("!!" . $key . "!!", $value, $content);
+				foreach ($data as $key => $value) {
+					$content = str_replace("!!" . $key . "!!", $value, $content);
+				}
+
+
+
+
+			}
+
 		}
-
-
-
-
-	}
-
-}
-return $content;
-}
-
-public static function getInvoiceTemplateKeys($invoice, $button)
-{
-
-	$data = array();
-	if (empty($invoice->accountnumber)) {
-		$paymenttype = "Boleto";
-		$paymentdetais = "<a href='$invoice->notes' target='_blank'>Mostrar Boleto</a>";
-	} else {
-		$paymenttype = "Cartão";
-		$paymentdetails = " $invoice->accountnumber | $invoice->expirationmonth/$invoice->expirationyear ";
-	}
-
-	$int_cycle = intval($invoice->membership_level->cycle_number);
-	if ($invoice->membership_level->cycle_period == "Month") {
-		$cycle_period = $int_cycle == 1 ? "Mês" : "Meses";
-	} else if ($invoice->membership_level->cycle_period == "Year") {
-		$cycle_period = $int_cycle == 1 ? "Ano" : "Anos";
-	} else if ($invoice->membership_level->cycle_period == "Week") {
-		$cycle_period = $int_cycle == 1 ? "Semana" : "Semanas";
-	} else if ($invoice->membership_level->cycle_period == "Day") {
-		$cycle_period = $int_cycle == 1 ? "Dia" : "Dias";
-	} else {
-		$cycle_period = null;
-	}
-	$status = "N/A";
-	$status_color = "#fafafa";
-	if ($invoice->status == "pending") {
-		$status = "	Aguardando pagamento";
-		$status_color = "#ff9800";
-	} elseif ($invoice->status == "review") {
-		$status = "Em análise";
-		$status_color = "#ffc107";
-	} elseif ($invoice->status == "success") {
-		$status = "Paga";
-		$status_color = "#8bc34a";
-	} elseif ($invoice->status == 'error') {
-		$status = "Não Concluida";
-		$status_color = "#ff3434";
-	} elseif ($invoice->status == 'cancelled') {
-		$status = "Cancelada Pelo Comprador";
-		$status_color = "#ff3434";
-	}
-
-	$data = array_merge($data, array(
-		'invoice_id' => $invoice->code,
-		'invoice_date' => date_format(date_create(), "d/m/Y"),
-		'invoice_status' => $status,
-		'status_color' => $status_color,
-		'baddress1' => $invoice->billing->street,
-		'cidade' => $invoice->billing->city,
-		'estado' => $invoice->billing->state,
-		'cep' => $invoice->billing->zip,
-		'firstname' => $invoice->FirstName,
-		'lastname' => $invoice->LastName,
-		'email' => $invoice->Email,
-		'paymenttype' => $paymenttype,
-		'paymentdetails' => $paymentdetails,
-		'membership_name' => $invoice->membership_level->name,
-		'membership_initial_payment' => (isset($cycle_period) ? "R$ " . $invoice->membership_level->initial_payment : "-----"),
-		'membership_billing_amount' => (isset($cycle_period) ? "R$ " . $invoice->membership_level->billing_amount : '-----'),
-		'membership_cycle_period' => (isset($cycle_period) ? $invoice->membership_level->cycle_number . " " . $cycle_period : '-----'),
-		'membership_price' => (isset($cycle_period) ? "R$ " . $invoice->membership_level->initial_payment . " + (R$ " . $invoice->membership_level->billing_amount . " * " . $invoice->membership_level->cycle_number . " " . $cycle_period . ") " : $invoice->membership_level->initial_payment),
-		'button_src' => $button['src'],
-		'button_text' => $button['text']
-	));
-
-
-	return $data;
-}
-
-
-
-
-
-
-/**
- * 1.14 Custom invoice
- *
- */
-public static function pmpro_pages_shortcode_invoice($content)
-{
-	global $wpdb, $pmpro_invoice, $pmpro_msg, $pmpro_msgt, $current_user;
-	
-	$gateway = pmpro_getGateway();
-	if ($gateway != "pagseguro") return $content;
-
-	if ($pmpro_msg) {
-		?>
-				<div class="pmpro_message <?php echo $pmpro_msgt ?>"><?php echo $pmpro_msg ?></div>
-			<?php
-
-	}
-	
-	
-
-	if ($pmpro_invoice) {
-		$pmpro_invoice->getUser();
-		$pmpro_invoice->getMembershipLevel();
-	}
-
-	if (!empty($pmpro_invoice)) {
-
-		$content = file_get_contents(PLUGIN_DIR . "templates/invoice.html");
-		$button = array('src' => pmpro_url('invoice'), 'text' => 'Voltar');
-		$data = self::getInvoiceTemplateKeys($pmpro_invoice, $button);
-
-		foreach ($data as $key => $value) {
-			$content = str_replace("!!" . $key . "!!", $value, $content);
-		}
-
-
-		return $content;
-
-	} else {
 		return $content;
 	}
-}
 
-
-
-
-/**
- * 1.15 Show payment log on order details page
- */
-public static function pmpro_after_order_settings($order)
-{
-	if (!empty($order) && $order->gateway == "pagseguro") {
-		$data = self::display_order_notes();
-
-		if ($data) {
-			$tmp = '<tr><th scope="row" valign="top"></th>';
-			$tmp .= '<td>';
-			$tmp .= $data;
-			$tmp .= '</td>';
-			$tmp .= '</tr>';
-
-			echo $tmp;
-		}
-	}
-
-	return true;
-}
-
-
-
-
-/**
- * 1.16 Save payment log
- */
-public static function add_order_note($order_id, $notes)
-{
-	$id = PMPROPAGSEGURO . "_" . $order_id . "_pagseguro_log";
-	$dt = date("d M Y, H:i", current_time('timestamp'));
-
-	$arr = get_option($id);
-	if (!$arr) $arr = array();
-	$arr[] = "<tr><th style='padding-top:15px' valign='top'>" . $dt . "</th><td>" . $notes . "</td></tr>";
-	update_option($id, $arr);
-
-	return true;
-}
-
-
-
-
-/**
- * 1.17 Display payment log
- */
-public static function display_order_notes()
-{
-	$tmp = "";
-	if (is_admin() && isset($_GET["order"]) && is_numeric($_GET["order"]) && isset($_GET["page"]) && $_GET["page"] == "pmpro-orders") {
-		$order_id = $_GET["order"];
-
-		$data = get_option(PMPROPAGSEGURO . "_" . $order_id . "_pagseguro_log");
-
-		if ($data) {
-			$tmp = "<br><h3>" . __("Log de PAgamento", PMPROPAGSEGURO) . " -</h3>";
-			$tmp .= "<table>" . implode("\n", $data) . "</table>";
-		}
-	}
-
-	return $tmp;
-}
-
-static function pmpro_next_payment($timestamp, $user_id, $order_status)
-{
-	//find the last order for this user
-	if(!empty($user_id))
+	public static function getInvoiceTemplateKeys($invoice, $button)
 	{
-		//get last order
-		$order = new MemberOrder();
-		$order->getLastMemberOrder($user_id, $order_status);
-		
-		
-		if(!empty($order->id) && !empty($order->subscription_transaction_id) && $order->gateway == "pagseguro")
-		{
-			return $timestamp;
-			
+
+		$data = array();
+		if (empty($invoice->accountnumber)) {
+			$paymenttype = "Boleto";
+			$paymentdetais = "<a href='$invoice->notes' target='_blank'>Mostrar Boleto</a>";
+		} else {
+			$paymenttype = "Cartão";
+			$paymentdetails = " $invoice->accountnumber | $invoice->expirationmonth/$invoice->expirationyear ";
+		}
+
+		$int_cycle = intval($invoice->membership_level->cycle_number);
+		if ($invoice->membership_level->cycle_period == "Month") {
+			$cycle_period = $int_cycle == 1 ? "Mês" : "Meses";
+		} else if ($invoice->membership_level->cycle_period == "Year") {
+			$cycle_period = $int_cycle == 1 ? "Ano" : "Anos";
+		} else if ($invoice->membership_level->cycle_period == "Week") {
+			$cycle_period = $int_cycle == 1 ? "Semana" : "Semanas";
+		} else if ($invoice->membership_level->cycle_period == "Day") {
+			$cycle_period = $int_cycle == 1 ? "Dia" : "Dias";
+		} else {
+			$cycle_period = null;
+		}
+		$status = "N/A";
+		$status_color = "#fafafa";
+		if ($invoice->status == "pending") {
+			$status = "	Aguardando pagamento";
+			$status_color = "#ff9800";
+		} elseif ($invoice->status == "review") {
+			$status = "Em análise";
+			$status_color = "#ffc107";
+		} elseif ($invoice->status == "success") {
+			$status = "Paga";
+			$status_color = "#8bc34a";
+		} elseif ($invoice->status == 'error') {
+			$status = "Não Concluida";
+			$status_color = "#ff3434";
+		} elseif ($invoice->status == 'cancelled') {
+			$status = "Cancelada Pelo Comprador";
+			$status_color = "#ff3434";
+		}
+
+		$data = array_merge($data, array(
+			'invoice_id' => $invoice->code,
+			'invoice_date' => date_format(date_create(), "d/m/Y"),
+			'invoice_status' => $status,
+			'status_color' => $status_color,
+			'baddress1' => $invoice->billing->street,
+			'cidade' => $invoice->billing->city,
+			'estado' => $invoice->billing->state,
+			'cep' => $invoice->billing->zip,
+			'firstname' => $invoice->FirstName,
+			'lastname' => $invoice->LastName,
+			'email' => $invoice->Email,
+			'paymenttype' => $paymenttype,
+			'paymentdetails' => $paymentdetails,
+			'membership_name' => $invoice->membership_level->name,
+			'membership_initial_payment' => (isset($cycle_period) ? "R$ " . $invoice->membership_level->initial_payment : "-----"),
+			'membership_billing_amount' => (isset($cycle_period) ? "R$ " . $invoice->membership_level->billing_amount : '-----'),
+			'membership_cycle_period' => (isset($cycle_period) ? $invoice->membership_level->cycle_number . " " . $cycle_period : '-----'),
+			'membership_price' => (isset($cycle_period) ? "R$ " . $invoice->membership_level->initial_payment . " + (R$ " . $invoice->membership_level->billing_amount . " * " . $invoice->membership_level->cycle_number . " " . $cycle_period . ") " : $invoice->membership_level->initial_payment),
+			'button_src' => $button['src'],
+			'button_text' => $button['text']
+		));
+
+
+		return $data;
+	}
+
+
+
+
+
+
+	/**
+	 * 1.14 Custom invoice
+	 *
+	 */
+	public static function pmpro_pages_shortcode_invoice($content)
+	{
+		global $wpdb, $pmpro_invoice, $pmpro_msg, $pmpro_msgt, $current_user;
+
+		$gateway = pmpro_getGateway();
+		if ($gateway != "pagseguro") return $content;
+
+		if ($pmpro_msg) {
+			sprintf('<div class="pmpro_message <?php echo $pmpro_msgt ?>"><?php echo $pmpro_msg ?></div>');
+		}
+
+
+
+		if ($pmpro_invoice) {
+			$pmpro_invoice->getUser();
+			$pmpro_invoice->getMembershipLevel();
+		}
+
+		if (!empty($pmpro_invoice)) {
+
+			$content = file_get_contents(PLUGIN_DIR . "templates/invoice.html");
+			$button = array('src' => pmpro_url('invoice'), 'text' => 'Voltar');
+			$data = self::getInvoiceTemplateKeys($pmpro_invoice, $button);
+
+			foreach ($data as $key => $value) {
+				$content = str_replace("!!" . $key . "!!", $value, $content);
+			}
+
+
+			return $content;
+
+		} else {
+			return $content;
 		}
 	}
-	return $timestamp;				
-	
-}
+
+
+
+
+	/**
+	 * 1.15 Show payment log on order details page
+	 */
+	public static function pmpro_after_order_settings($order)
+	{
+		if (!empty($order) && $order->gateway == "pagseguro") {
+			$data = self::display_order_notes();
+
+			if ($data) {
+				$tmp = '<tr><th scope="row" valign="top"></th>';
+				$tmp .= '<td>';
+				$tmp .= $data;
+				$tmp .= '</td>';
+				$tmp .= '</tr>';
+
+				echo $tmp;
+			}
+		}
+
+		return true;
+	}
+
+
+
+
+	/**
+	 * 1.16 Save payment log
+	 */
+	public static function add_order_note($order_id, $notes)
+	{
+		$id = PMPROPAGSEGURO . "_" . $order_id . "_pagseguro_log";
+		$dt = date("d M Y, H:i", current_time('timestamp'));
+
+		$arr = get_option($id);
+		if (!$arr) $arr = array();
+		$arr[] = "<tr><th style='padding-top:15px' valign='top'>" . $dt . "</th><td>" . $notes . "</td></tr>";
+		update_option($id, $arr);
+
+		return true;
+	}
+
+
+
+
+	/**
+	 * 1.17 Display payment log
+	 */
+	public static function display_order_notes()
+	{
+		$tmp = "";
+		if (is_admin() && isset($_GET["order"]) && is_numeric($_GET["order"]) && isset($_GET["page"]) && $_GET["page"] == "pmpro-orders") {
+			$order_id = $_GET["order"];
+
+			$data = get_option(PMPROPAGSEGURO . "_" . $order_id . "_pagseguro_log");
+
+			if ($data) {
+				$tmp = "<br><h3>" . __("Log de PAgamento", PMPROPAGSEGURO) . " -</h3>";
+				$tmp .= "<table>" . implode("\n", $data) . "</table>";
+			}
+		}
+
+		return $tmp;
+	}
+
+	static function pmpro_next_payment($timestamp, $user_id, $order_status)
+	{
+	//find the last order for this user
+		if (!empty($user_id)) {
+		//get last order
+			$order = new MemberOrder();
+			$order->getLastMemberOrder($user_id, $order_status);
+
+
+			if (!empty($order->id) && !empty($order->subscription_transaction_id) && $order->gateway == "pagseguro") {
+				return $timestamp;
+
+			}
+		}
+		return $timestamp;
+
+	}
 
 }
 
