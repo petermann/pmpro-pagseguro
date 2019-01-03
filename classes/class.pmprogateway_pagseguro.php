@@ -8,7 +8,7 @@ define("PMPRO_PAGSEGURO_VERSION", 'S4TiV4');
 add_action('init', array('PMProGateway_PagSeguro', 'init'));
 
 
-//add_action('pmpro_save_membership_level', array('PMProGateway_PagSeguro', 'create_pagseguro_recurring_payment'));
+add_action('pmpro_save_membership_level', array('PMProGateway_PagSeguro', 'pagseguro_level_meta'));
 //add_action("pmpro_delete_membership_level", array('PMProGateway_PagSeguro', 'delete_pagseguro_recurring_payment'));
 
 add_filter('plugin_action_links', array('PMProGateway_PagSeguro', 'plugin_action_links'), 10, 2);
@@ -126,95 +126,19 @@ class PMProGateway_PagSeguro extends PMProGateway
 	}
 
 
-	function create_pagseguro_recurring_payment($level_id)
+	function pagseguro_level_meta($level_id)
 	{
 		global $wpdb, $gateway_environment, $gateway;
+		$gateway = pmpro_getGateway();
 		if ($gateway != "pagseguro") return;
-		$level = $wpdb->get_row(
-			$wpdb->prepare(
-				"
-			SELECT * FROM $wpdb->pmpro_membership_levels
-			WHERE id = %d LIMIT 1",
-				$level_id
-			),
-			OBJECT
-		);
-		$code = $wpdb->get_row($wpdb->prepare("
-			SELECT * FROM $wpdb->pmpro_membership_levelmeta
-			WHERE pmpro_membership_level_id	= %d and meta_key = 'pmpro_pagseguro_code'
-		", intval($level->id)), OBJECT);
-		if (floatval($level->initial_payment) == 0.0 && floatval($level->billing_amount) == 0.0)
-			return;
-
-		if (!isset($code)) {
-			$email = pmpro_getOption('pagseguro_email');
-
-			if ($gateway_environment == 'sandbox') {
-				$token = pmpro_getOption('pagseguro_sandbox_token');
-				$sandbox = true;
-			} else {
-				$token = pmpro_getOption('pagseguro_token');
-				$sandbox = false;
-			}
-
-			$pagseguro = new PagSeguroAssinaturas($email, $token, $sandbox);
-
-			//Cria um nome para o plano
-			self::$pagseguroAssinaturas->setReferencia("PAGSEGURO-PMPRO: " . $level->name);
-			//$pagserguro->setNomeAssinatura($level->name);
-			// //Cria uma descrição para o plano
-			// self::$pagseguroAssinaturas->setDescricao($level->name);
 		
-			//Valor a ser cobrado a cada renovação
-			if (floatval($level->billing_amount) > 0.0)
-				self::$pagseguroAssinaturas->setValor($level->billing_amount);
-			else
-				self::$pagseguroAssinaturas->setValor($level->initial_payment);
-
-
-			self::$pagseguroAssinaturas->setPeriodicidade(($level->cycle_period == "Month" ? PagSeguroAssinaturas::MENSAL : PagSeguroAssinaturas::ANUAL));	
-
 		
-			// //Após quanto tempo a assinatura irá expirar após a contratação = valor inteiro + (DAYS||MONTHS||YEARS).
-			// self::$pagseguroAssinaturas->setExpiracao(floatvar($level->expiration_number), strtoupper($level->expiration_period));
-			
-			// //=== Campos Opcionais ===//
-			// //URL para redicionar a pessoa do portal PagSeguro para uma página de cancelamento no portal
-			// //self::$pagseguroAssinaturas->setURLCancelamento('http://carloswgama.com.br/pagseguro/not/cancelando.php');
-			
-			//Local para o comprador será redicionado após a compra com o código (code) identificador da assinatura
-			if ($gateway_environment == "sandbox")
-				$url = null;
-			else
-				$url = esc_url_raw(admin_url("admin-ajax.php") . "?action=pmpropagseguro");
-			self::$pagseguroAssinaturas->setRedirectURL($url);		
-		
-			//Máximo de pessoas que podem usar esse plano. Exemplo 10.000 pessoas podem usar esse plano
-			//self::$pagseguroAssinaturas->setMaximoUsuariosNoPlano();
-			
-			//=== Cria o plano ===//
-
-			try {
-				$codigoPlano = self::$pagseguroAssinaturas->criarPlano();
-
-				$data = array('meta_key' => 'pmpro_pagseguro_code', 'meta_value' => $codigoPlano, 'pmpro_membership_level_id' => $level_id);
-				$format = array('%s', '%s');
-
-				$wpdb->insert($wpdb->pmpro_membership_levelmeta, $data, $format);
-				$metaid = $wpdb->insert_id;
-				if (!isset($metaId)) {
-					throw new Exception("Falha ao Armazenar o código do Pag Seguro no banco de dados do WordPress, o Pagamento deste nivel de acesso não será possivél pelo PagSeguro, tente novamente ou entre em contato pelo email <strong>luizn@alu.ufc.br</strong>", 1);
-
-				}
+		// $data = array('meta_key' => 'pagseguro_period', 'meta_value' => $_REQUEST['pagseguro_period'], 'pmpro_membership_level_id' => $level_id);
+		// $format = array('%s', '%s');
+		// $wpdb->insert($wpdb->pmpro_membership_levelmeta, $data, $format);
+		// $metaid = $wpdb->insert_id;
 
 
-			} catch (Exception $e) {
-				die;
-			}
-
-		} else {
-
-		}
 
 	}
 
@@ -259,6 +183,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 			add_filter('pmpro_pages_shortcode_invoice', array('PMProGateway_PagSeguro', 'pmpro_pages_shortcode_invoice'), 20, 1);
 			add_filter('pmpro_pages_shortcode_confirmation', array('PMProGateway_PagSeguro', 'pmpro_pages_shortcode_confirmation'), 20, 1);
 			add_action('pmpro_after_order_settings', array('PMProGateway_PagSeguro', 'pmpro_after_order_settings'));
+			add_action('pmpro_membership_level_after_other_settings',array('PMProGateway_PagSeguro', 'pmpro_membership_level_after_other_settings'));
 		}
 	}
 
@@ -274,7 +199,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 		if (!pmpro_isLevelRecurring($pmpro_level)) return true;
 		if ($gateway != "pagseguro") return true;
 		self::loadPagSeguroLibrary(true);
-		if (($gateway == "pagseguro" || $default_gateway == "pagseguro") && !pmpro_isLevelFree($pmpro_level)) {
+		if ($gateway == "pagseguro" && !pmpro_isLevelFree($pmpro_level)) {
 			try {
 				global $pagsegurojs;
 				$pagsegurojs = self::$pagseguroAssinaturas->preparaCheckoutTransparente();
@@ -350,7 +275,101 @@ class PMProGateway_PagSeguro extends PMProGateway
 
 		//don't show the default
 	return false;
-}
+	}
+
+	static function pmpro_membership_level_after_other_settings(){
+		global $wpdb, $gateway_environment, $gateway;
+		$gateway = pmpro_getGateway();
+		if($gateway != "pagseguro") return;
+
+		if(isset($_REQUEST['edit'])){
+			$level = $wpdb->get_row( $wpdb->prepare( "
+					SELECT * FROM $wpdb->pmpro_membership_levels
+					WHERE id = %d LIMIT 1",
+					intval($_REQUEST['edit'])
+				),
+					OBJECT
+				);
+			
+			if(intval($level->cycle_number) == 1 && $level->cycle_period == 'Week')
+				$levelperiod = '1';
+			elseif(intval($level->cycle_number) == 1 && $level->cycle_period == 'Month')
+				$levelperiod = '2';
+			elseif(intval($level->cycle_number) == 2 && $level->cycle_period == 'Month')
+				$levelperiod = '3';				
+			elseif(intval($level->cycle_number) == 3 && $level->cycle_period == 'Month')
+				$levelperiod = '4';		
+			elseif(intval($level->cycle_number) == 6 && $level->cycle_period == 'Month')
+				$levelperiod = '5';
+			else
+				$levelperiod = '6';													
+		}
+		
+		?>
+			
+		<script>
+		
+			jQuery(document).ready(function() {
+				
+				$("#cycle_number").hide();
+				let trial = $(".trial_info");
+				trial.html('<th scope="row" valign="top"> <label for="trial_amount"> Duração do Período de Degustação: </label> </th> <td> <input name="trial_amount" type="text" size="20" value="" style="display: none;"> <input name="trial_limit" type="number" min="1" max="100" value="<?php echo isset($level) ? $level->trial_limit : '' ?>"> <br><small>Dias de período de teste (sem gerar cobrança). <b>Máximo de 100 dias<b></small> </td>');
+				let cycle = $(".recurring_info")[0]
+				cycle.innerHTML = ' <th scope="row" valign="top"> <label for="billing_amount">Valor da parcela :</label> </th> <td> R$ <input name="billing_amount" type="text" size="20" value="<?php echo isset($level) ? $level->billing_amount : '' ?>"><input id="cycle_number" name="cycle_number" type="text" size="10" value="1" style="display: none;"> <br><small> Quantidade a ser cobrada um ciclo após o primeiro pagamento. </small>  </td>';
+				$('<tr class="recurring_info"> <th scope="row" valign="top"> <label for="billing_amount">Frequência das Cobranças:</label> </th> <td> <select id="cycle_period" name="cycle_period"> <option value="1"<?php echo isset($levelperiod) ? ($levelperiod == '1' ? "selected" : '') : '' ?>>Semanal</option> <option value="2" <?php echo isset($levelperiod) ? ($levelperiod == '2' ? "selected" : '') : '' ?>>Mensal</option> <option value="3" <?php echo isset($levelperiod) ? ($levelperiod == '3' ? "selected" : '') : '' ?>>Bimestral</option> <option value="4" <?php echo isset($levelperiod) ? ($levelperiod == '4' ? "selected" : '') : '' ?>>Trimestral</option> <option value="5" <?php echo isset($levelperiod) ? ($levelperiod == '5' ? "selected" : '') : '' ?>>Semestral</option> <option value="6" <?php echo isset($levelperiod) ? ($levelperiod == '6' ? "selected" : '') : '' ?>>Anual</option> </select></td></tr>').insertAfter(cycle)
+				$( "form" ).submit(function( event ) {
+					event.preventDefault();
+					let val = $( "#cycle_period" ).val();
+  					switch(val) {
+						case '1':
+
+							$("#cycle_period option").each(function(index) {
+    							$(this).val('Week');
+							});
+							$("#cycle_number").val('1');
+							break;
+						case '2':
+							$("#cycle_period option").each(function(index) {
+    							$(this).val('Month');
+							});
+							
+							$("#cycle_number").val('1');
+							break;
+						case '3':
+							$("#cycle_period option").each(function(index) {
+    							$(this).val('Month');
+							});
+							$("#cycle_number").val('2');
+							break;
+						case '4':
+							$("#cycle_period option").each(function(index) {
+    							$(this).val('Month');
+							});$("#cycle_number").val('3');
+							break;
+						case '5':
+							$("#cycle_period option").each(function(index) {
+    							$(this).val('Month');
+							});
+							$("#cycle_number").val('6');
+							break;
+						case '6':
+							$("#cycle_period option").each(function(index) {
+    							$(this).val('Year');
+							});
+							$("#cycle_number").val('1');
+							break;
+					}	
+					console.log($("#cycle_period").val());
+					var form$ = jQuery("form");
+                    form$.append("<input type='hidden' id='pagseguro_period' value='"+val+"' />");									
+					form$.get(0).submit();
+
+				});
+			});
+
+		</script>
+		<?php
+	}
 
 /**
  * Make sure PagSeguro is in the gateways list
