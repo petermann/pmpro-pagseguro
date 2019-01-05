@@ -296,7 +296,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 			else
 				$levelperiod = '6';
 		}
-		include_once(PLUGIN_DIR . "templates/admin/level-fields-js.php");
+		include_once(PLUGIN_DIR . "includes/level-fields-js.php");
 
 	}
 
