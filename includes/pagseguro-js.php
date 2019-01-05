@@ -1,5 +1,11 @@
 <?php
-
+/**
+ * PagSeguro for Paid Membership Pro
+ * pagseguro-js.php 
+ * script responsavél validar e preparar o checkout transparente 
+ * 
+ * implementado em 01/01/2019
+ */
 function pmpro_pagseguro_javascript()
 {
     global $pagsegurojs;
@@ -50,10 +56,10 @@ function pmpro_pagseguro_javascript()
                     return {valid :false, msg : "Telefone inválido", id :"#telefonenumber"};
                 if(data.cardholdername.length == 0)
                     return {valid :false, msg : "Nome do Titular inválido", id :"#cardholdername"};
+                if(data.cpfsender.length != 11 || !validaCPF(data.cpfsender))
+                    return {valid :false, msg : "CPF do Comprador inválido", id :"#cpfsender"};                    
                 if(data.cpfholder.length != 11 || !validaCPF(data.cpfholder))
                     return {valid :false, msg : "CPF do Titular inválido", id :"#cpfholder"};
-                if(data.cpfsender.length != 11 || !validaCPF(data.cpfsender))
-                    return {valid :false, msg : "CPF do Comprador inválido", id :"#cpfsender"};
                 if(data.cardexpmonth.length == 0)
                     return {valid :false, msg : "Mês de expiração do cartão inválido", id :"#cardexpmonth"};
                 if(data.cardexpyear.length == 0)
@@ -81,6 +87,7 @@ function pmpro_pagseguro_javascript()
                     jQuery('html, body').animate({
                         scrollTop: $(error.id).offset().top - 300
                     }, 2000);
+                    alert(error.msg);
                 }else{
                     alert(error.msg);
                 }

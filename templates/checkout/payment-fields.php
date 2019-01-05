@@ -1,4 +1,13 @@
-
+<?php
+/**
+ * PagSeguro for Paid Membership Pro
+ * payment-fields.php 
+ * 
+ * campos utilizados no checkout transparente para os dados do cartão e do comprador
+ *  
+ * implementado em 01/01/2019
+ */
+?>
 <div id="pmpro_payment_information_fields" class="pmpro_checkout">
     <h3>
         <span class="pmpro_checkout-h3-name"><?php _e('Payment Information', 'paid-memberships-pro'); ?></span>

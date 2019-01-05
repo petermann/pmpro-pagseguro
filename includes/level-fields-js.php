@@ -1,5 +1,14 @@
-<?php ?>
-	<script>
+<?php 
+/**
+ * PagSeguro for Paid Membership Pro
+ * level-fields-js.php 
+ * script responsavél por ajustar a criação de planos para o formato do pag seguro
+ * alterando os campos do period de cobrança e periodo de degustação e revalidando o formulário
+ * 
+ * implementado em 03/01/2019
+ */
+?>
+<script>
 		
         jQuery(document).ready(function() {
             
@@ -59,5 +68,4 @@
             });
         });
 
-    </script>
-<?php
+</script>

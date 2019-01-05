@@ -1,4 +1,15 @@
 <?php
+/**
+ * PagSeguro for Paid Membership Pro
+ * PagSeguroAssinaturas.php 
+ * 
+ * Por : Carlos W Gama  https://github.com/CarlosWGama/php-pagseguro
+ * Alterado por : Luiz Neto  https://github.com/exatasmente
+ * 
+ * Classe responsavél por realizar a comunicação com o PagSeguro
+ * 
+ * alterado em 26/12/2018
+ */
 class PagSeguroAssinaturas
 {
 	
