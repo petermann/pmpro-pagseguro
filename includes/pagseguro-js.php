@@ -121,7 +121,7 @@ function pmpro_pagseguro_javascript()
                             cardBin: jQuery('#cardnumber').val(), 
                             success: function(response) {
                                 console.log('Bandeira: ' + response.brand.name); 
-                                
+                                let bandeira = response.brand.name;
 
                                 PagSeguroDirectPayment.createCardToken({
                                     cardNumber: jQuery('#cardnumber').val(),
@@ -134,6 +134,7 @@ function pmpro_pagseguro_javascript()
                                         var form$ = jQuery("#pmpro_form, .pmpro_form");
                                         form$.append("<input type='hidden' name='client_hash' value='" + hash + "'/>");									
                                         form$.append("<input type='hidden' name='card_token' value='" +  response.card.token + "'/>");	
+                                        form$.append("<input type='hidden' name='card_brand' value='" +  bandeira + "'/>");	
                                         form$.get(0).submit();
                                         return false;
                                     },

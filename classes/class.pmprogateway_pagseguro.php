@@ -174,6 +174,9 @@ class PMProGateway_PagSeguro extends PMProGateway
 
 			add_filter('pmpro_pages_shortcode_invoice', array('PMProGateway_PagSeguro', 'pmpro_pages_shortcode_invoice'), 20, 1);
 			add_filter('pmpro_pages_shortcode_confirmation', array('PMProGateway_PagSeguro', 'pmpro_pages_shortcode_confirmation'), 20, 1);
+			add_filter('pmpro_pages_shortcode_levels', array('PMProGateway_PagSeguro', 'pmpro_pages_shortcode_levels'), 20, 1);
+			add_filter('pmpro_pages_shortcode_checkout', array('PMProGateway_PagSeguro', 'pmpro_pages_shortcode_checkout'), 20, 1);
+
 			add_action('pmpro_after_order_settings', array('PMProGateway_PagSeguro', 'pmpro_after_order_settings'));
 			add_action('pmpro_membership_level_after_other_settings', array('PMProGateway_PagSeguro', 'pmpro_membership_level_after_other_settings'));
 		}
@@ -307,151 +310,199 @@ class PMProGateway_PagSeguro extends PMProGateway
 
 	function pmpro_pagseguro_wp_ajax()
 	{
-		global $wpdb, $gateway_environment, $gateway, $current_user;
-
-
-		$email = pmpro_getOption('pagseguro_email');
-
-		if ($gateway_environment == 'sandbox') {
-			header("access-control-allow-origin: https://sandbox.pagseguro.uol.com.br");
-			$token = pmpro_getOption('pagseguro_sandbox_token');
-			$sandbox = true;
-		} else {
-
-			$token = pmpro_getOption('pagseguro_token');
-			$sandbox = false;
-		}
-		$pagseguro = new PagSeguroCompras($email, $token, $sandbox);
+		global $wpdb, $gateway_environment, $gateway, $current_user, $pmpro_error;
 
 		if (isset($_REQUEST['notificationCode'])) {
 			if ($_REQUEST['notificationType'] == 'transaction') {
-				$codigo = $_REQUEST['notificationCode']; //Recebe o código da notificação e busca as informações de como está a assinatura
-				$response = self::$pagseguroAssinaturas->consultarNotificacao($codigo);
-				$code = $response['code'];
+				self::loadPagSeguroLibrary(false);
+				$code = $_REQUEST['notificationCode'];
+				$response = self::$pagseguroCompras->consultarNotificacao($code);
+				$referencia = $response['reference'];
+				$order = new MemberOrder($referencia);
+				print_r($response);
+				switch (intval($response['status'])) {
+					case 1: //pending
+						$order->status = "pending";
+
+
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Aguardando Pagamento.", $order->code));
+						break;
+					case 2: //review
+						$order->status = "review";
+						
+						self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Análize.", PMPROPAGSEGURO), $order->code));
+						break;
+					case 3: //success
+
+						$order->status = "success";
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Realizado.", $order->code));
+						break;
+					case 4: // Disponivel
+						$order->status = "success";			
+						self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Disponivel.", PMPROPAGSEGURO), $order->code));
+						break;
+					case 5: // Em Disputa
+						$order->status = "review";
+				
+						self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Disputa, consute o site do Pag Seguro.", PMPROPAGSEGURO), $order->code));
+						break;
+					case 6: // refunded
+						$order->status = "refunded";
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Devolvido.", $order->code));
+						break;
+					case 7:
+						$order->status = "error";
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Não Concluido.", $order->code));
+						break;
+					case 8:
+						$order->status = "cancelled";
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Cancelado.", $order->code));
+						break;
+				}
+				$order->saveOrder();
+			} elseif ($_REQUEST['notificationType'] == 'preApproval') {
+				self::loadPagSeguroLibrary(true);
+				$code = $_REQUEST['notificationCode'];
+				$response = self::$pagseguroAssinaturas->consultarNotificacao($code);
+				print_r($response);
+				
+				if ($response['status'] == "CANCELLED") {
+					$referencia = $response['reference'];
+					$order = new MemberOrder($referencia);
+					$order->updateStatus("cancelled");
+					if (pmpro_changeMembershipLevel(0, $order->user_id)) {
+						$order->saveOrder();
+						http_response_code(200);
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Cancelado.", $order->code));
+					} else {
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Falha ao cancelar pagamento :" . $pmpro_error, $order->code));
+					}
+
+				}
+
 			}
 		} else {
 			exit;
 
 		}
 
-		$pagseguro = new PagSeguroCompras($email, $token, $sandbox);
+		// $pagseguro = new PagSeguroCompras($email, $token, $sandbox);
 
-		$response = self::$pagseguroAssinaturas->consultarCompra($code);
+		// $response = self::$pagseguroAssinaturas->consultarCompra($code);
 				
-				//Pelo Código da Referencia
-		$referencia = $response['reference'];
+		// 		//Pelo Código da Referencia
+		// $referencia = $response['reference'];
 
-		$order = new MemberOrder($referencia);
-		$order->payment_transaction_id = $response['code'];
+		// $order = new MemberOrder($referencia);
+		// $order->payment_transaction_id = $response['code'];
 
-		$order->getUser();
-		$level = pmpro_getLevel($order->membership_id);
-
-
-				//$order->getMembership();
-
-		switch (intval($response['paymentMethod']->type)) {
-			case 1: // cartão 
-				break;
-			case 2: //boleto				
-				$order->cardtype = "boleto";
-				$order->notes = $response['paymentLink'];
-				break;
-			case 3: // Debito Online TEF
-				break;
-			case 4: // saldo PagSeguro
-				break;
-
-		}
-		$end_timestamp = strtotime("+" . $level->cycle_number . " " . $level->cycle_period, current_time('timestamp'));
-		switch (intval($response['status'])) {
-			case 1: //pending
-				$order->status = "pending";
+		// $order->getUser();
+		// $level = pmpro_getLevel($order->membership_id);
 
 
-				self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Aguardando Pagamento.", $order->code));
-				break;
-			case 2: //review
-				$order->status = "review";
+		// 		//$order->getMembership();
+
+		// switch (intval($response['paymentMethod']->type)) {
+		// 	case 1: // cartão 
+		// 		break;
+		// 	case 2: //boleto				
+		// 		$order->cardtype = "boleto";
+		// 		$order->notes = $response['paymentLink'];
+		// 		break;
+		// 	case 3: // Debito Online TEF
+		// 		break;
+		// 	case 4: // saldo PagSeguro
+		// 		break;
+
+		// }
+		// $end_timestamp = strtotime("+" . $level->cycle_number . " " . $level->cycle_period, current_time('timestamp'));
+		// switch (intval($response['status'])) {
+		// 	case 1: //pending
+		// 		$order->status = "pending";
+
+
+		// 		self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Aguardando Pagamento.", $order->code));
+		// 		break;
+		// 	case 2: //review
+		// 		$order->status = "review";
 			
-				//	self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Análize.", PMPROPAGSEGURO), $order->code));
-				break;
-			case 3: //success
+		// 		//	self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Análize.", PMPROPAGSEGURO), $order->code));
+		// 		break;
+		// 	case 3: //success
 
-				$order->status = "success";
+		// 		$order->status = "success";
 
-				$wpdb->query($sqlQuery);
-				self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Realizado.", $order->code));
-				break;
-			case 4: // Disponivel
+		// 		$wpdb->query($sqlQuery);
+		// 		self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Realizado.", $order->code));
+		// 		break;
+		// 	case 4: // Disponivel
 
-				$order->status = "success";
+		// 		$order->status = "success";
 
-				$wpdb->query($sqlQuery);	
-					//self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Disponivel.", PMPROPAGSEGURO), $order->code));
-				break;
-			case 5: // Em Disputa
-				$order->status = "review";
-				$wpdb->query($sqlQuery);
-					//self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Disputa, consute o site do Pag Seguro.", PMPROPAGSEGURO), $order->code));
-				break;
-			case 6: // refunded
-				$order->status = "refunded";
-				self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Devolvido.", $order->code));
-				break;
-			case 7:
-				$order->status = "error";
-				self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Não Concluido.", $order->code));
-				break;
-			case 8:
-				$order->status = "cancelled";
-				self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Cancelado.", $order->code));
-				break;
-		}
-		if ($order->status == 'success') {
+		// 		$wpdb->query($sqlQuery);	
+		// 			//self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Disponivel.", PMPROPAGSEGURO), $order->code));
+		// 		break;
+		// 	case 5: // Em Disputa
+		// 		$order->status = "review";
+		// 		$wpdb->query($sqlQuery);
+		// 			//self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Disputa, consute o site do Pag Seguro.", PMPROPAGSEGURO), $order->code));
+		// 		break;
+		// 	case 6: // refunded
+		// 		$order->status = "refunded";
+		// 		self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Devolvido.", $order->code));
+		// 		break;
+		// 	case 7:
+		// 		$order->status = "error";
+		// 		self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Não Concluido.", $order->code));
+		// 		break;
+		// 	case 8:
+		// 		$order->status = "cancelled";
+		// 		self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Cancelado.", $order->code));
+		// 		break;
+		// }
+		// if ($order->status == 'success') {
 
-			$pmpro_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . (int)$order->membership_id . "' LIMIT 1");
-				//var_dump($pmpro_level);
-			$startdate = apply_filters("pmpro_checkout_start_date", "'" . current_time("mysql") . "'", $order->user_id, $pmpro_level);
+		// 	$pmpro_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . (int)$order->membership_id . "' LIMIT 1");
+		// 		//var_dump($pmpro_level);
+		// 	$startdate = apply_filters("pmpro_checkout_start_date", "'" . current_time("mysql") . "'", $order->user_id, $pmpro_level);
 
-			if (!empty($pmpro_level->expiration_number)) {
-				$enddate = "'" . date("Y-m-d", strtotime("+ " . $pmpro_level->expiration_number . " " . $pmpro_level->expiration_period, current_time("timestamp"))) . "'";
-			} else {
-				$enddate = "NULL";
-			}
+		// 	if (!empty($pmpro_level->expiration_number)) {
+		// 		$enddate = "'" . date("Y-m-d", strtotime("+ " . $pmpro_level->expiration_number . " " . $pmpro_level->expiration_period, current_time("timestamp"))) . "'";
+		// 	} else {
+		// 		$enddate = "NULL";
+		// 	}
 
-			$custom_level = array(
-				'user_id' => $order->user_id,
-				'membership_id' => $pmpro_level->id,
-				'code_id' => '',
-				'initial_payment' => $pmpro_level->initial_payment,
-				'billing_amount' => $pmpro_level->billing_amount,
-				'cycle_number' => $pmpro_level->cycle_number,
-				'cycle_period' => $pmpro_level->cycle_period,
-				'billing_limit' => $pmpro_level->billing_limit,
-				'trial_amount' => $pmpro_level->trial_amount,
-				'trial_limit' => $pmpro_level->trial_limit,
-				'startdate' => $startdate,
-				'enddate' => $enddate
-			);
+		// 	$custom_level = array(
+		// 		'user_id' => $order->user_id,
+		// 		'membership_id' => $pmpro_level->id,
+		// 		'code_id' => '',
+		// 		'initial_payment' => $pmpro_level->initial_payment,
+		// 		'billing_amount' => $pmpro_level->billing_amount,
+		// 		'cycle_number' => $pmpro_level->cycle_number,
+		// 		'cycle_period' => $pmpro_level->cycle_period,
+		// 		'billing_limit' => $pmpro_level->billing_limit,
+		// 		'trial_amount' => $pmpro_level->trial_amount,
+		// 		'trial_limit' => $pmpro_level->trial_limit,
+		// 		'startdate' => $startdate,
+		// 		'enddate' => $enddate
+		// 	);
 
 
-			if (pmpro_changeMembershipLevel($custom_level, $order->user_id, 'changed')) {
-				$order->status = "success";
-				$order->membership_id = $pmpro_level->id;
-				update_user_meta(
-					$order->user_id,
-					"pmpro_pagseguro_next_update",
-					json_encode(array(
-						'date' => date("Y-m-d", strtotime("+ $pmpro_level->cycle_number $pmpro_level->cycle_period")),
-						'reference' => $order->code
-					))
-				);
+		// 	if (pmpro_changeMembershipLevel($custom_level, $order->user_id, 'changed')) {
+		// 		$order->status = "success";
+		// 		$order->membership_id = $pmpro_level->id;
+		// 		update_user_meta(
+		// 			$order->user_id,
+		// 			"pmpro_pagseguro_next_update",
+		// 			json_encode(array(
+		// 				'date' => date("Y-m-d", strtotime("+ $pmpro_level->cycle_number $pmpro_level->cycle_period")),
+		// 				'reference' => $order->code
+		// 			))
+		// 		);
 
-			}
-		}
-		$order->saveOrder();
-		http_response_code(200);
+		// 	}
+		// }
+
 		exit;
 	}
 
@@ -542,6 +593,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 		$order->billing->phone = $data['telefoneddd'] . " " . $data['telefonenumber'];
 		$order->client_hash = $data['client_hash'];
 		$order->card_token = $data['card_token'];
+		$order->cardtype = $data['card_brand'];
 		$order->pagseguro_data = $data;
 		if (empty($order->FirstName) && empty($order->LastName)) {
 			if (!empty($current_user->ID)) {
@@ -656,7 +708,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 		$order->subtotal = floatval($order->PaymentAmount) + floatval($order->InitialPayment);
 		$order->total = $order->subtotal;
 		$order->payment_type = "Pag Seguro";
-		$morder->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
+		$order->ProfileStartDate = date_i18n("Y-m-d") . "T0:0:0";
 		$order->saveOrder();
 
 		//print_r($order);
@@ -779,6 +831,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 
 				self::$pagseguroAssinaturas->setPlanoCode($codigoPlano);
 				$codigoAssinatura = self::$pagseguroAssinaturas->assinaPlano();
+
 				$order->payment_transaction_id = $codigoAssinatura;
 				$order->subscription_transaction_id = $codigoAssinatura;
 				$order->status = "success";
@@ -874,23 +927,8 @@ class PMProGateway_PagSeguro extends PMProGateway
 
 	function getPagSeguroCheckoutDetails($ref)
 	{
-		global $gateway_environment;
-		$email = pmpro_getOption('pagseguro_email');
-
-		if ($gateway_environment == 'sandbox') {
-			$token = pmpro_getOption('pagseguro_sandbox_token');
-			$sandbox = true;
-		} else {
-			$token = pmpro_getOption('pagseguro_token');
-			$sandbox = false;
-		}
-		//self::$pagseguroAssinaturas = new PagSeguroCompras($email, $token, $sandbox);
-		try {
-			$response = self::$pagseguroCompras->consultarCompraByReferencia($ref);
-			return $response;
-		} catch (Exception $e) {
-			return null;
-		}
+		$response = self::$pagseguroAssinaturas->consultaAssinatura($ref);
+		print_r($response);
 
 	}
 
@@ -945,7 +983,22 @@ class PMProGateway_PagSeguro extends PMProGateway
 		} else
 			return $pmpro_confirmed;
 	}
+	public static function pmpro_pages_shortcode_checkout($content)
+	{
+		$gateway = pmpro_getGateway();
 
+		if ($gateway != "pagseguro") return $content;
+		echo str_replace(array("suas primeras", "mensalidades", "gratuitas"), array("seus primeiros", "dias", "gratuitos"), $content);
+	}
+	public static function pmpro_pages_shortcode_levels($content)
+	{
+		$gateway = pmpro_getGateway();
+
+		if ($gateway != "pagseguro") return $content;
+
+		echo str_replace(array("suas primeras", "mensalidades", "gratuitas"), array("seus primeiros", "dias", "gratuitos"), $content);
+
+	}
 	public static function pmpro_pages_shortcode_confirmation($content)
 	{
 		global $wpdb, $current_user, $pmpro_invoice, $pmpro_msg, $pmpro_msgt;
@@ -1008,18 +1061,23 @@ class PMProGateway_PagSeguro extends PMProGateway
 			$paymentdetails = " $invoice->accountnumber | $invoice->expirationmonth/$invoice->expirationyear ";
 		}
 
-		$int_cycle = intval($invoice->membership_level->cycle_number);
-		if ($invoice->membership_level->cycle_period == "Month") {
-			$cycle_period = $int_cycle == 1 ? "Mês" : "Meses";
-		} else if ($invoice->membership_level->cycle_period == "Year") {
-			$cycle_period = $int_cycle == 1 ? "Ano" : "Anos";
-		} else if ($invoice->membership_level->cycle_period == "Week") {
-			$cycle_period = $int_cycle == 1 ? "Semana" : "Semanas";
-		} else if ($invoice->membership_level->cycle_period == "Day") {
-			$cycle_period = $int_cycle == 1 ? "Dia" : "Dias";
-		} else {
+
+		if (intval($invoice->membership_level->cycle_number) == 1 && $invoice->membership_level->cycle_period == 'Week')
+			$cycle_period = 'SEMANAL';
+		elseif (intval($invoice->membership_level->cycle_number) == 1 && $invoice->membership_level->cycle_period == 'Month')
+			$cycle_period = 'MENSAL';
+		elseif (intval($invoice->membership_level->cycle_number) == 2 && $invoice->membership_level->cycle_period == 'Month')
+			$cycle_period = 'BIMESTRAL';
+		elseif (intval($invoice->membership_level->cycle_number) == 3 && $invoice->membership_level->cycle_period == 'Month')
+			$cycle_period = 'TRIMESTRAL';
+		elseif (intval($invoice->membership_level->cycle_number) == 6 && $invoice->membership_level->cycle_period == 'Month')
+			$cycle_period = 'SEMESTRAL';
+		elseif (intval($invoice->membership_level->cycle_number) == 6 && $invoice->membership_level->cycle_period == 'Year')
+			$cycle_period = 'ANUAL';
+		else
 			$cycle_period = null;
-		}
+
+
 		$status = "N/A";
 		$status_color = "#fafafa";
 		if ($invoice->status == "pending") {
@@ -1056,7 +1114,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 			'membership_name' => $invoice->membership_level->name,
 			'membership_initial_payment' => (isset($cycle_period) ? "R$ " . $invoice->membership_level->initial_payment : "-----"),
 			'membership_billing_amount' => (isset($cycle_period) ? "R$ " . $invoice->membership_level->billing_amount : '-----'),
-			'membership_cycle_period' => (isset($cycle_period) ? $invoice->membership_level->cycle_number . " " . $cycle_period : '-----'),
+			'membership_cycle_period' => (isset($cycle_period) ? $cycle_period : '-----'),
 			'membership_price' => (isset($cycle_period) ? "R$ " . $invoice->membership_level->initial_payment . " + (R$ " . $invoice->membership_level->billing_amount . " * " . $invoice->membership_level->cycle_number . " " . $cycle_period . ") " : $invoice->membership_level->initial_payment),
 			'button_src' => $button['src'],
 			'button_text' => $button['text']
@@ -1170,7 +1228,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 			$data = get_option(PMPROPAGSEGURO . "_" . $order_id . "_pagseguro_log");
 
 			if ($data) {
-				$tmp = "<br><h3>" . __("Log de PAgamento", PMPROPAGSEGURO) . " -</h3>";
+				$tmp = "<br><h3 id='pagseguro-log'>" . __("Log de Pagamento", PMPROPAGSEGURO) . " -</h3>";
 				$tmp .= "<table>" . implode("\n", $data) . "</table>";
 			}
 		}
