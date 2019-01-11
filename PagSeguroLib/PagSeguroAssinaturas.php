@@ -1,4 +1,5 @@
 <?php
+
 /**
  * PagSeguro for Paid Membership Pro
  * PagSeguroAssinaturas.php 
@@ -79,7 +80,7 @@ class PagSeguroAssinaturas
                 'value' => ''
             )
         )
-        
+
     );
     private $formaPagamento = array(
         'type' => 'CREDITCARD',
@@ -164,6 +165,24 @@ class PagSeguroAssinaturas
     const TRIMESTRAL = 'TRIMONTHLY';
     const SEMESTRAL = 'SEMIANNUALLY';
     const ANUAL = 'YEARLY';
+
+    /**
+     * Tipo desconto
+     * @access private
+     * @var string 'DISCOUNT_AMOUNT'|'DISCOUNT_AMOUNT'
+     */
+    private $tipoDesconto = "DISCOUNT_AMOUNT";
+    const DESCONTO_PORCENTAGEM = 'DISCOUNT_PERCENT';
+    const DESCONTO_VALOR = 'DISCOUNT_AMOUNT';
+
+    /**
+     * Valor desconto
+     * @access  private
+     * @var float  
+     */
+    private $valorDesconto = 0;
+
+
     /**
      * Link para onde a pessoa será redicionada após concluir a assinatura no Pagseguro
      * @access private
@@ -393,6 +412,23 @@ class PagSeguroAssinaturas
         }
     }
     /**
+     * Aplica desconto à uma assinatura
+     * @access public
+     * @param $codePagSeguro string (Código fornecido pelo pagseguro para uma compra)
+     * @return bool
+     */
+    public function aplicarDesconto($codePagSeguro)
+    {
+        $dados['type'] = $this->tipoDesconto;
+        $dados['value'] = $this->valorDesconto;
+        $response = $this->put($this->getURLAPI() . 'pre-approvals/' . $codePagSeguro . '/discount', $dados);
+        if ($response['http_code'] == 204) {
+            return true;
+        } else {
+            throw new \Exception(current($response['body']['errors']));
+        }
+    }
+    /**
      * Habilita ou Desabilita uma assinatura
      * @access public
      * @param $codePagSeguro $codigoPreApproval
@@ -510,6 +546,27 @@ class PagSeguroAssinaturas
         if (!in_array($this->periodicidade, array('WEEKLY', 'MONTHLY', 'BIMONTHLY', 'TRIMONTHLY', 'SEMIANNUALLY', 'YEARLY')))
             $this->periodicidade = '-'; //Erro
         return $this->periodicidade;
+    }
+    /**
+     * @param $tipo int | string('DISCOUNT_AMOUNT', 'DISCOUNT_PERCENT' )
+     */
+    public function setTipoDesconto($tipo)
+    {
+        $this->tipoDesconto = $tipo;
+		//Tratamento
+        if (!in_array($this->tipoDesconto, array('DISCOUNT_AMOUNT', 'DISCOUNT_PERCENT')))
+            $this->tipoDesconto = '-'; //Erro
+        return $this->tipoDesconto;
+    }
+
+    /**
+     * @param $valor float
+     */
+    public function setValorDesconto($valor)
+    {
+        $this->valorDesconto = $valor;
+		return $this->valorDesconto;
+        
     }
 
     /**
