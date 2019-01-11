@@ -183,6 +183,8 @@ class PMProGateway_PagSeguro extends PMProGateway
 
 			add_action('pmpro_after_order_settings', array('PMProGateway_PagSeguro', 'pmpro_after_order_settings'));
 			add_action('pmpro_membership_level_after_other_settings', array('PMProGateway_PagSeguro', 'pmpro_membership_level_after_other_settings'));
+
+			add_action("pmpro_cron_trial_ending_warnings",  array('PMProGateway_PagSeguro','pmpro_cron_trial_ending_warnings'));
 		}
 	}
 
@@ -315,6 +317,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 	function pmpro_pagseguro_wp_ajax()
 	{
 		global $wpdb, $gateway_environment, $gateway, $current_user, $pmpro_error;
+		
 
 		if (isset($_REQUEST['notificationCode'])) {
 			if ($_REQUEST['notificationType'] == 'transaction') {
@@ -389,123 +392,6 @@ class PMProGateway_PagSeguro extends PMProGateway
 			exit;
 
 		}
-
-		// $pagseguro = new PagSeguroCompras($email, $token, $sandbox);
-
-		// $response = self::$pagseguroAssinaturas->consultarCompra($code);
-				
-		// 		//Pelo Código da Referencia
-		// $referencia = $response['reference'];
-
-		// $order = new MemberOrder($referencia);
-		// $order->payment_transaction_id = $response['code'];
-
-		// $order->getUser();
-		// $level = pmpro_getLevel($order->membership_id);
-
-
-		// 		//$order->getMembership();
-
-		// switch (intval($response['paymentMethod']->type)) {
-		// 	case 1: // cartão 
-		// 		break;
-		// 	case 2: //boleto				
-		// 		$order->cardtype = "boleto";
-		// 		$order->notes = $response['paymentLink'];
-		// 		break;
-		// 	case 3: // Debito Online TEF
-		// 		break;
-		// 	case 4: // saldo PagSeguro
-		// 		break;
-
-		// }
-		// $end_timestamp = strtotime("+" . $level->cycle_number . " " . $level->cycle_period, current_time('timestamp'));
-		// switch (intval($response['status'])) {
-		// 	case 1: //pending
-		// 		$order->status = "pending";
-
-
-		// 		self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Aguardando Pagamento.", $order->code));
-		// 		break;
-		// 	case 2: //review
-		// 		$order->status = "review";
-			
-		// 		//	self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Análize.", PMPROPAGSEGURO), $order->code));
-		// 		break;
-		// 	case 3: //success
-
-		// 		$order->status = "success";
-
-		// 		$wpdb->query($sqlQuery);
-		// 		self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Realizado.", $order->code));
-		// 		break;
-		// 	case 4: // Disponivel
-
-		// 		$order->status = "success";
-
-		// 		$wpdb->query($sqlQuery);	
-		// 			//self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Disponivel.", PMPROPAGSEGURO), $order->code));
-		// 		break;
-		// 	case 5: // Em Disputa
-		// 		$order->status = "review";
-		// 		$wpdb->query($sqlQuery);
-		// 			//self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Disputa, consute o site do Pag Seguro.", PMPROPAGSEGURO), $order->code));
-		// 		break;
-		// 	case 6: // refunded
-		// 		$order->status = "refunded";
-		// 		self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Devolvido.", $order->code));
-		// 		break;
-		// 	case 7:
-		// 		$order->status = "error";
-		// 		self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Não Concluido.", $order->code));
-		// 		break;
-		// 	case 8:
-		// 		$order->status = "cancelled";
-		// 		self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Cancelado.", $order->code));
-		// 		break;
-		// }
-		// if ($order->status == 'success') {
-
-		// 	$pmpro_level = $wpdb->get_row("SELECT * FROM $wpdb->pmpro_membership_levels WHERE id = '" . (int)$order->membership_id . "' LIMIT 1");
-		// 		//var_dump($pmpro_level);
-		// 	$startdate = apply_filters("pmpro_checkout_start_date", "'" . current_time("mysql") . "'", $order->user_id, $pmpro_level);
-
-		// 	if (!empty($pmpro_level->expiration_number)) {
-		// 		$enddate = "'" . date("Y-m-d", strtotime("+ " . $pmpro_level->expiration_number . " " . $pmpro_level->expiration_period, current_time("timestamp"))) . "'";
-		// 	} else {
-		// 		$enddate = "NULL";
-		// 	}
-
-		// 	$custom_level = array(
-		// 		'user_id' => $order->user_id,
-		// 		'membership_id' => $pmpro_level->id,
-		// 		'code_id' => '',
-		// 		'initial_payment' => $pmpro_level->initial_payment,
-		// 		'billing_amount' => $pmpro_level->billing_amount,
-		// 		'cycle_number' => $pmpro_level->cycle_number,
-		// 		'cycle_period' => $pmpro_level->cycle_period,
-		// 		'billing_limit' => $pmpro_level->billing_limit,
-		// 		'trial_amount' => $pmpro_level->trial_amount,
-		// 		'trial_limit' => $pmpro_level->trial_limit,
-		// 		'startdate' => $startdate,
-		// 		'enddate' => $enddate
-		// 	);
-
-
-		// 	if (pmpro_changeMembershipLevel($custom_level, $order->user_id, 'changed')) {
-		// 		$order->status = "success";
-		// 		$order->membership_id = $pmpro_level->id;
-		// 		update_user_meta(
-		// 			$order->user_id,
-		// 			"pmpro_pagseguro_next_update",
-		// 			json_encode(array(
-		// 				'date' => date("Y-m-d", strtotime("+ $pmpro_level->cycle_number $pmpro_level->cycle_period")),
-		// 				'reference' => $order->code
-		// 			))
-		// 		);
-
-		// 	}
-		// }
 
 		exit;
 	}
@@ -762,6 +648,9 @@ class PMProGateway_PagSeguro extends PMProGateway
 				if ($gateway_environment == 'sandbox') {
 					$ip = '192.168.0.1';
 				}
+				if(empty($ip) )
+					$ip = '192.168.0.1';
+
 				self::$pagseguroAssinaturas->setIp($ip);
 				self::$pagseguroAssinaturas->setNomeCliente($order->FirstName . " " . $order->LastName);
 				self::$pagseguroAssinaturas->setNomeCliente($order->pagseguro_data['cardholdername'], true);
@@ -790,6 +679,9 @@ class PMProGateway_PagSeguro extends PMProGateway
 				$codigoAssinatura = self::$pagseguroAssinaturas->assinaPlano();
 				$order->payment_transaction_id = $codigoAssinatura;
 				$order->subscription_transaction_id = $codigoAssinatura;
+
+				$response = self::$pagseguroAssinaturas->consultaAssinatura($codigoAssinatura);
+				
 				$order->status = "success";
 				$order->saveOrder();
 			} else {
@@ -809,6 +701,10 @@ class PMProGateway_PagSeguro extends PMProGateway
 				if ($gateway_environment == 'sandbox') {
 					$ip = '192.168.0.1';
 				}
+				if(empty($ip) )
+					$ip = '192.168.0.1';
+
+
 				self::$pagseguroAssinaturas->setIp($ip);
 				self::$pagseguroAssinaturas->setNomeCliente($order->FirstName . " " . $order->LastName);
 				self::$pagseguroAssinaturas->setNomeCliente($order->pagseguro_data['cardholdername'], true);
@@ -1257,5 +1153,48 @@ class PMProGateway_PagSeguro extends PMProGateway
 		return $timestamp;
 
 	}
-
+	function pmpro_cron_trial_ending_warnings()
+	{
+		global $wpdb;
+	
+		//clean up errors in the memberships_users table that could cause problems
+		pmpro_cleanup_memberships_users_table();
+	
+		$today = date_i18n("Y-m-d 00:00:00", current_time("timestamp"));
+	
+		$pmpro_email_days_before_trial_end = apply_filters("pmpro_email_days_before_trial_end", 3);
+	
+		//look for memberships with trials ending soon (but we haven't emailed them within three days)
+		$sqlQuery = "
+		SELECT
+			mu.user_id, mu.membership_id, mu.startdate, mu.cycle_period, mu.trial_limit FROM $wpdb->pmpro_memberships_users mu LEFT JOIN $wpdb->usermeta um ON um.user_id = mu.user_id AND um.meta_key = 'pmpro_trial_ending_notice'
+		WHERE
+			mu.status = 'active' AND mu.trial_limit IS NOT NULL AND mu.trial_limit > 0
+				AND DATE_ADD(mu.startdate, INTERVAL mu.trial_limit Day) <= DATE_ADD('" . $today . "', INTERVAL " . $pmpro_email_days_before_trial_end . " Day)				
+				AND (um.meta_value IS NULL OR um.meta_value = '' OR DATE_ADD(um.meta_value, INTERVAL " . $pmpro_email_days_before_trial_end . " Day) <= '" . $today . "')
+		ORDER BY mu.startdate";
+	
+		$trial_ending_soon = $wpdb->get_results($sqlQuery);
+		
+		foreach($trial_ending_soon as $e)
+		{
+			$send_email = apply_filters("pmpro_send_trial_ending_email", true, $e->user_id);
+			if($send_email)
+			{
+				//send an email
+				$pmproemail = new PMProEmail();
+				$euser = get_userdata($e->user_id);
+				$pmproemail->sendTrialEndingEmail($euser);
+	
+				if(current_user_can('manage_options'))
+					printf(__("Trial ending email sent to %s. ", 'paid-memberships-pro' ), $euser->user_email);
+				else
+					echo ". ";
+			}
+	
+			//update user meta so we don't email them again
+			update_user_meta($e->user_id, "pmpro_trial_ending_notice", $today);
+		}
+	}
+	
 }
