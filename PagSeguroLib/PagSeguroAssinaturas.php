@@ -76,7 +76,7 @@ class PagSeguroAssinaturas
         ),
         'documents' => array(
             array(
-                'type' => "",
+                'type' => "CPF",
                 'value' => ''
             )
         )
@@ -364,6 +364,7 @@ class PagSeguroAssinaturas
         if ($response['http_code'] == 200) {
             return $response['body']['code'];
         } else {
+            
             throw new \Exception(current($response['body']['errors']));
         }
     }
@@ -732,6 +733,7 @@ class PagSeguroAssinaturas
             curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
         $curl_response = curl_exec($curl);
+        print_r($curl_response);
         $response = curl_getinfo($curl);
         $response['body'] = json_decode($curl_response, true);
         curl_close($curl);
