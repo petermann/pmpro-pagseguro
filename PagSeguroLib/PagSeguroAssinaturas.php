@@ -361,6 +361,7 @@ class PagSeguroAssinaturas
 		//Dados da compra
 
         $response = $this->post($this->getURLAPI() . 'pre-approvals/', $dados);
+        var_dump($response);
         if ($response['http_code'] == 200) {
             return $response['body']['code'];
         } else {
@@ -710,7 +711,7 @@ class PagSeguroAssinaturas
         curl_setopt($curl, CURLOPT_HTTPHEADER, $this->headers);
         $curl_response = curl_exec($curl);
         $response = curl_getinfo($curl);
-        $response['body'] = json_decode($curl_response, true);
+        $response['body'] = (array)simplexml_load_string($curl_response);
         curl_close($curl);
         return $response;
     }
@@ -733,9 +734,10 @@ class PagSeguroAssinaturas
             curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
         $curl_response = curl_exec($curl);
-        print_r($curl_response);
+        
         $response = curl_getinfo($curl);
-        $response['body'] = json_decode($curl_response, true);
+        $response['body'] = (array)simplexml_load_string($curl_response);
+        
         curl_close($curl);
         return $response;
     }
@@ -759,7 +761,7 @@ class PagSeguroAssinaturas
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
         $curl_response = curl_exec($curl);
         $response = curl_getinfo($curl);
-        $response['body'] = json_decode($curl_response, true);
+        $response['body'] = (array)simplexml_load_string($curl_response);
         curl_close($curl);
         return $response;
     }

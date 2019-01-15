@@ -371,20 +371,47 @@ class PMProGateway_PagSeguro extends PMProGateway
 				self::loadPagSeguroLibrary(true);
 				$code = $_REQUEST['notificationCode'];
 				$response = self::$pagseguroAssinaturas->consultarNotificacao($code);
-				print_r($response);
 				
+				$referencia = $response['reference'];
+				$order = new MemberOrder($referencia);
+				print_r($response);
 				if ($response['status'] == "CANCELLED") {
-					$referencia = $response['reference'];
-					$order = new MemberOrder($referencia);
-					$order->updateStatus("cancelled");
+					
+					
 					if (pmpro_changeMembershipLevel(0, $order->user_id)) {
+						$order->updateStatus("cancelled");
 						$order->saveOrder();
 						http_response_code(200);
 						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Cancelado.", $order->code));
-					} else {
-						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Falha ao cancelar pagamento :" . $pmpro_error, $order->code));
+					} 
+				}elseif($response['status'] == "PENDING"){
+					if (pmpro_changeMembershipLevel(0, $order->user_id)) {
+						$order->updateStatus("pending");
+						$order->saveOrder();
+						http_response_code(200);
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Pendendte.", $order->code));
 					}
 
+				}elseif($response['status'] == "ACTIVE"){
+					if (pmpro_changeMembershipLevel($order->membership_id, $order->user_id)) {
+						$order->updateStatus("success");
+						$order->saveOrder();
+						http_response_code(200);
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Autorizado.", $order->code));
+					} 
+				}elseif($response['status'] == 'PAYMENT_METHOD_CHANGE'){
+					if (pmpro_changeMembershipLevel(0, $order->user_id)) {
+						$order->updateStatus('error');
+						$order->saveOrder();
+						http_response_code(200);
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Aguardando a troca do cartão de crédito.", $order->code));
+					}
+				}elseif($response['status'] == 'EXPIRED'){
+					if (pmpro_changeMembershipLevel(0, $order->user_id)) {
+						
+						http_response_code(200);
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Expirado.", $order->code));
+					}
 				}
 
 			}
@@ -637,7 +664,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 
 				$wpdb->insert($wpdb->pmpro_membership_levelmeta, $data, $format);
 
-
+				print_r($codigoPlano);
 				if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
 					$ip = $_SERVER['HTTP_CLIENT_IP'];
 				} elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
