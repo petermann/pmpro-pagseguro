@@ -1,6 +1,6 @@
 # Pag Seguro for Paid Membership Pro - V S4TIV$
 Este plugin adiciona o pag seguro como forma de pagamento para o plugin Paid Membership Pro (WordPress)
-
+(Versão instável)
 # CAPTURAS DE TELA
 
 * Gateway setings
