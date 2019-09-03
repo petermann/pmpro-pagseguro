@@ -278,7 +278,7 @@ class PagSeguroAssinaturas
         $dados['preApproval']['name'] = $this->referencia;
         $dados['preApproval']['details'] = $this->descricao;
         $dados['preApproval']['amountPerPayment'] = $this->valor;
-        $dados['preApproval']['membershipFee'] = $this->taxaAdesao;
+        //$dados['preApproval']['membershipFee'] = $this->taxaAdesao;
         $dados['preApproval']['period'] = $this->periodicidade;
         $dados['receiver']['email'] = $this->email;
 
@@ -298,12 +298,12 @@ class PagSeguroAssinaturas
             $dados['maxUses'] = $this->maximoUsuarios;
 
         $response = $this->post($this->getURLAPI() . 'pre-approvals/request', $dados);
-
+        print_r($response);
         if ($response['http_code'] == 200) {
             return $response['body']['code'];
         } else {
 
-            throw new \Exception(current($response['body']['errors']));
+            throw new \Exception(current($response['body']['error']));
         }
     }
     /** Cria um ID para comunicação com Checkout Transparente 
@@ -366,7 +366,7 @@ class PagSeguroAssinaturas
             return $response['body']['code'];
         } else {
             
-            throw new \Exception(current($response['body']['errors']));
+            throw new \Exception(current($response['body']['error']));
         }
     }
     /**
@@ -384,7 +384,7 @@ class PagSeguroAssinaturas
         if ($response['http_code'] == 200) {
             return $response['body'];
         } else {
-            throw new \Exception(current($response['body']['errors']));
+            throw new \Exception(current($response['body']['error']));
         }
     }
     /** Consulta uma assinatura **/
@@ -394,7 +394,7 @@ class PagSeguroAssinaturas
         if ($response['http_code'] == 200) {
             return $response['body'];
         } else {
-            throw new \Exception(current($response['body']['errors']));
+            throw new \Exception(current($response['body']['error']));
         }
     }
 
@@ -410,7 +410,7 @@ class PagSeguroAssinaturas
         if ($response['http_code'] == 204) {
             return true;
         } else {
-            throw new \Exception(current($response['body']['errors']));
+            throw new \Exception(current($response['body']['error']));
         }
     }
     /**
@@ -427,7 +427,7 @@ class PagSeguroAssinaturas
         if ($response['http_code'] == 204) {
             return true;
         } else {
-            throw new \Exception(current($response['body']['errors']));
+            throw new \Exception(current($response['body']['error']));
         }
     }
     /**
@@ -444,7 +444,7 @@ class PagSeguroAssinaturas
         if ($response['http_code'] == 204) {
             return true;
         } else {
-            throw new \Exception(current($response['body']['errors']));
+            throw new \Exception(current($response['body']['error']));
         }
     }
 	

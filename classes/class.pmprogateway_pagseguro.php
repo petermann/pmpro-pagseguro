@@ -317,8 +317,8 @@ class PMProGateway_PagSeguro extends PMProGateway
 	function pmpro_pagseguro_wp_ajax()
 	{
 		global $wpdb, $gateway_environment, $gateway, $current_user, $pmpro_error;
-		
-
+			
+		print_r($_REQUEST);
 		if (isset($_REQUEST['notificationCode'])) {
 			if ($_REQUEST['notificationType'] == 'transaction') {
 				self::loadPagSeguroLibrary(false);
@@ -337,7 +337,7 @@ class PMProGateway_PagSeguro extends PMProGateway
 					case 2: //review
 						$order->status = "review";
 						
-						self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Análize.", PMPROPAGSEGURO), $order->code));
+						self::add_order_note($order->id, sprintf(__("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento em Análise.", PMPROPAGSEGURO), $order->code));
 						break;
 					case 3: //success
 
@@ -375,7 +375,28 @@ class PMProGateway_PagSeguro extends PMProGateway
 				$referencia = $response['reference'];
 				$order = new MemberOrder($referencia);
 				print_r($response);
-				if ($response['status'] == "CANCELLED") {
+				if ($response['status'] == "SUSPENDED") {
+					
+					
+					if (pmpro_changeMembershipLevel(0, $order->user_id)) {
+						$order->updateStatus("review");
+						$order->saveOrder();
+						http_response_code(200);
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Suspenso.", $order->code));
+					} 
+					
+				}elseif ($response['status'] == "CANCELLED_BY_RECEIVER") {
+					
+					var_dump($order);
+					if (pmpro_changeMembershipLevel(0, intval($order->user_id),"admin_cancelled")) {
+						print("oir");
+						$order->updateStatus("cancelled");
+						$order->saveOrder();
+						http_response_code(200);
+						self::add_order_note($order->id, sprintf("Detalhes do Pagamento <br><br>Referência  : %s</a>. Pagamento Cancelado pelo Vendedor.", $order->code));
+					} 
+					
+				}elseif ($response['status'] == "CANCELLED") {
 					
 					
 					if (pmpro_changeMembershipLevel(0, $order->user_id)) {
