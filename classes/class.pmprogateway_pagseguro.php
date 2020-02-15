@@ -115,6 +115,9 @@ class PMProGateway_PagSeguro extends PMProGateway
 
 	public static function plugin_action_links($links, $file)
 	{
+		if (strpos($file, 'pmpro-pagseguro-gateway') === false) {
+		    return $links;
+		}
 		$links[] = '<a href="' .
 			admin_url('admin.php?page=pmpro-paymentsettings') .
 			'">' . __('Settings') . '</a>';
